@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5395ded2fa0dfc74099041ee46259ecd, type: 3}
+  m_Name: Difficulty_Normal
+  m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.DifficultyProfile
+  mode: 1
+  standardized: 0
+  fixedSeed: 0
+  trackIdentifier: normal-v1
+  forwardSpeed: 7.5
+  speedAdjustmentRange: 3.5
+  obstacleProbability: 0.6
+  movingObstacleSpeed: 1.5
+  maximumForwardSpeed: 7.5
+  maximumObstacleProbability: 0.6
+  maximumMovingObstacleSpeed: 1.5
+  distanceToMaximum: 1000

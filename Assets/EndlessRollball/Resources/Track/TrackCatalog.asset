@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed7f036affe1cf84b9087e1f98b4366d, type: 3}
+  m_Name: TrackCatalog
+  m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.TrackCatalog
+  fallbackSegment: {fileID: 7238027126008359966, guid: 46d11713f9e984a41ab8265cb2b8c964, type: 3}
+  segments:
+  - {fileID: 7238027126008359966, guid: 46d11713f9e984a41ab8265cb2b8c964, type: 3}
+  - {fileID: 2812630330277942568, guid: 21c7a87cf282c9c4bac88ea6345d483e, type: 3}
+  - {fileID: 8369155605070226219, guid: 78120f0fc808aa9478a0dbae856a1c6d, type: 3}
+  - {fileID: 1932262506897720883, guid: b5690b671cf8d5b49908f063bb689621, type: 3}
+  - {fileID: 5217101877892312198, guid: f081c4d650b7a494e9643523004626c0, type: 3}
+  - {fileID: 4541210058021438781, guid: 1696c67fd2f27dd49a610b65fb90b9ec, type: 3}
+  - {fileID: 450139648519404387, guid: e7c6e1ad011975147b55a8c60bf2273d, type: 3}
+  - {fileID: 4792430175469468924, guid: 011bf9bdbab59a74cae294619daa554c, type: 3}
