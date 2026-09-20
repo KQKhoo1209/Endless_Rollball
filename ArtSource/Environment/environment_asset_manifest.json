@@ -1,0 +1,47 @@
+{
+  "project": "Endless Rollball",
+  "milestone": "Environment visual asset kits",
+  "updated": "2026-08-17",
+  "authoring": {
+    "software": "Blender 5.2.0 LTS",
+    "units": "metres",
+    "blender_forward": "+Y",
+    "unity_forward": "+Z",
+    "generator": "ArtSource/Environment/build_environment_kits.py"
+  },
+  "custom_asset_sets": [
+    {
+      "name": "Futuristic Street",
+      "source": "Project-owned procedural Blender geometry",
+      "author": "Endless Rollball project team",
+      "license": "Project-owned",
+      "modifications": "Original low-poly towers, signs, lighting, roadside modules, landmarks and dressing props",
+      "unity_destination": "Assets/EndlessRollball/Art/Environment/FuturisticStreet"
+    },
+    {
+      "name": "Water Theme Park",
+      "source": "Project-owned procedural Blender geometry",
+      "author": "Endless Rollball project team",
+      "license": "Project-owned",
+      "modifications": "Original low-poly water planes, fountains, slides, towers, landmarks and dressing props",
+      "unity_destination": "Assets/EndlessRollball/Art/Environment/WaterThemePark"
+    },
+    {
+      "name": "Ancient Dungeon",
+      "source": "Project-owned procedural Blender geometry",
+      "author": "Endless Rollball project team",
+      "license": "Project-owned",
+      "modifications": "Original low-poly walls, arches, ruins, braziers, chains, landmarks and dressing props",
+      "unity_destination": "Assets/EndlessRollball/Art/Environment/AncientDungeon"
+    },
+    {
+      "name": "Neutral Transition Tunnel",
+      "source": "Project-owned procedural Blender geometry",
+      "author": "Endless Rollball project team",
+      "license": "Project-owned",
+      "modifications": "Original modular entrance, middle, exit, portal frames and directional-light geometry",
+      "unity_destination": "Assets/EndlessRollball/Art/Environment/TransitionTunnel"
+    }
+  ],
+  "third_party_assets": []
+}

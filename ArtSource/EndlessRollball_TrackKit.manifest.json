@@ -1,0 +1,86 @@
+{
+  "units": "metres",
+  "blender_forward": "+Y",
+  "unity_forward": "+Z",
+  "fbx_axis_forward": "-Z",
+  "fbx_axis_up": "Y",
+  "segments": {
+    "TRK_Straight_Wide": {
+      "floor_width": 9.0,
+      "entry": 0.0,
+      "exit": 24.0
+    },
+    "TRK_Straight_Narrow": {
+      "floor_width": 6.0,
+      "entry": 0.0,
+      "exit": 24.0
+    },
+    "TRK_Gap": {
+      "floor_width": 9.0,
+      "entry": 0.0,
+      "approach_end": 7.5,
+      "ramp_start": 7.5,
+      "ramp_end": 10.5,
+      "ramp_height": 0.35,
+      "gap_start": 10.5,
+      "gap_end": 16.5,
+      "landing_start": 16.5,
+      "exit": 24.0
+    },
+    "TRK_Tunnel_Straight": {
+      "floor_width": 9.0,
+      "interior_width": 9.0,
+      "interior_height": 6.0,
+      "entry": 0.0,
+      "exit": 24.0
+    }
+  },
+  "exports": [
+    {
+      "name": "TRK_Straight_Wide",
+      "file": "TRK_Straight_Wide.fbx"
+    },
+    {
+      "name": "TRK_Straight_Narrow",
+      "file": "TRK_Straight_Narrow.fbx"
+    },
+    {
+      "name": "TRK_Gap",
+      "file": "TRK_Gap.fbx"
+    },
+    {
+      "name": "TRK_Tunnel_Straight",
+      "file": "TRK_Tunnel_Straight.fbx"
+    },
+    {
+      "name": "OBS_Wall",
+      "file": "OBS_Wall.fbx"
+    },
+    {
+      "name": "OBS_Moving_Barrier",
+      "file": "OBS_Moving_Barrier.fbx"
+    },
+    {
+      "name": "OBS_Moving_Wall_Wide",
+      "file": "OBS_Moving_Wall_Wide.fbx"
+    },
+    {
+      "name": "TRK_Side_Rail",
+      "file": "TRK_Side_Rail.fbx"
+    },
+    {
+      "name": "TRK_Support",
+      "file": "TRK_Support.fbx"
+    },
+    {
+      "name": "TRK_Light_Module",
+      "file": "TRK_Light_Module.fbx"
+    },
+    {
+      "name": "TRK_Deco_Pillar",
+      "file": "TRK_Deco_Pillar.fbx"
+    }
+  ],
+  "unity_contract": "Imported segment renderer bounds span local z=0 to z=24",
+  "export_root_rotation_z_degrees": 180
+}
