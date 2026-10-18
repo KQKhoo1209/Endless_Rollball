@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 2100000, guid: 7274a89acf124c4982ca2264465491b6, type: 2}
+  m_SkyboxMaterial: {fileID: 0}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -198,7 +198,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.TrackGenerator
   player: {fileID: 2114248218}
-  catalog: {fileID: 11400000, guid: 976ae062f4bfc494383c34b463fdcf39, type: 2}
+  catalog: {fileID: 11400000, guid: 62df4ee9039f5b344a44a6f20d40d2b2, type: 2}
   difficultyManager: {fileID: 432166305}
   poolRoot: {fileID: 26192079}
   startZ: -12
@@ -219,10 +219,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.DifficultyManager
   initialMode: 0
   profiles:
-  - {fileID: 11400000, guid: 3934851e0d35a7142803892ea74607c9, type: 2}
-  - {fileID: 11400000, guid: 6b517eca889f5964ea866dc6cbcfa9d7, type: 2}
-  - {fileID: 11400000, guid: d028b5ace6f4328408dfbd9caf353814, type: 2}
-  - {fileID: 11400000, guid: a977d24f04ddf0e4cb8a1415ebe27fbc, type: 2}
+  - {fileID: 11400000, guid: 6a9a4f55cf777944cbb4dc9581e53534, type: 2}
+  - {fileID: 11400000, guid: 9a2d78586cb8d2e4586f9bbba59aeee9, type: 2}
+  - {fileID: 11400000, guid: e0393463a9bdc9d4ea1aa1d405f0ddc9, type: 2}
+  - {fileID: 11400000, guid: 48bef7eabfad1414d9d90128609a5226, type: 2}
   player: {fileID: 2114248218}
   ballMovement: {fileID: 2114248219}
 --- !u!4 &432166306
