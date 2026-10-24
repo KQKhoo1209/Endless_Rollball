@@ -12,6 +12,7 @@ namespace EndlessRollball.Track
         [SerializeField] private DifficultyManager difficultyManager;
         [SerializeField] private Transform poolRoot;
         [SerializeField] private EnvironmentManager environmentManager;
+        [SerializeField] private ObstacleManager obstacleManager;
         [SerializeField] private float startZ = -12f;
         [SerializeField, Min(TrackSegment.ContractLength)] private float aheadDistance = 144f;
         [SerializeField, Min(0f)] private float recycleBehindDistance = 24f;
@@ -46,6 +47,8 @@ namespace EndlessRollball.Track
         public void SetGenerationPaused(bool paused)
         {
             generationPaused = paused;
+            if (obstacleManager != null)
+                obstacleManager.SetMotionPaused(paused);
         }
 
         private void Start()
@@ -102,6 +105,10 @@ namespace EndlessRollball.Track
             generationPaused = false;
 
             ReturnAllSegments();
+
+            if (obstacleManager != null)
+                obstacleManager.EndRun();
+
             random = new System.Random(currentRun.Seed);
             selectionState = TrackSelectionState.Initial;
             generatedSequence.Clear();
@@ -188,6 +195,22 @@ namespace EndlessRollball.Track
             if (catalog.RequiresThemeRoadSelection)
                 effectiveTrackIdentifier += "-playable-roads-v1-straight-only";
 
+            if (obstacleManager != null &&
+                obstacleManager.BeginRun(currentRun.Seed))
+            {
+                if (catalog.RequiresThemeRoadSelection && obstacleManager.GapTracksEnabled &&
+                    !environmentManager.TryValidatePlayableGapTracks(currentRun.Mode, out string gapReason))
+                {
+                    Debug.LogError($"Gap road initialization failed: {gapReason}", this);
+                    obstacleManager.EndRun();
+                    environmentManager.EndRun();
+                    hasFiniteRoute = false;
+                    initialized = false;
+                    return;
+                }
+                effectiveTrackIdentifier += "-obstacles-fixed-moving-row-gap-v6";
+            }
+
             EnsureTrackAhead();
             RunPrepared?.Invoke();
         }
@@ -252,11 +275,12 @@ namespace EndlessRollball.Track
                 IsFinishCorridor(spawnedCount);
 
             TrackSegment prefab;
+            ObstacleManager.EncounterPlan encounter = default;
 
             if (catalog.RequiresThemeRoadSelection)
             {
                 // The scheduled theme is resolved BEFORE acquiring a complete track.
-                // All current replacements are clear floors; obstacles will be a later milestone.
+                // Plan one encounter before acquiring either a clear road OR its gap variant.
                 if (environmentManager == null ||
                     !environmentManager.TryGetPlayableRoadTrack(spawnedCount, out prefab))
                 {
@@ -264,6 +288,22 @@ namespace EndlessRollball.Track
                     generationPaused = true;
                     return false;
                 }
+                bool beforeTunnel = environmentManager.IsTransitionSegment(spawnedCount + 1);
+                bool blockEncounter = forceSafeStart || requiresClearTrack || beforeTunnel;
+                float obstacleDistance = Mathf.Max(0f, nextSpawnZ + TrackSegment.ContractLength * 0.5f);
+                DifficultySnapshot obstacleDifficulty = difficultyManager != null
+                    ? difficultyManager.EvaluateForDistance(obstacleDistance) : snapshot;
+
+                if (obstacleManager != null)
+                {
+                    TrackSegment gap = obstacleManager.GapTracksEnabled
+                        ? environmentManager.GetGapTrackForRoad(prefab) : null;
+                    encounter = obstacleManager.PlanEncounter(prefab, gap, spawnedCount, blockEncounter,
+                        obstacleDifficulty.ObstacleProbability, obstacleDifficulty.MovingObstacleSpeed);
+                    if (encounter.IsGap)
+                        prefab = encounter.Track;
+                }
+                // Record only the ACTUAL selected track, never first Empty then Gap.
                 UpdateSelectionStateForForcedSegment(prefab);
             }
             else if (requiresClearTrack)
@@ -303,6 +343,11 @@ namespace EndlessRollball.Track
             instance.Activate(snapshot);
 
             environmentManager?.Attach(instance, spawnedCount);
+
+            if (obstacleManager != null)
+            {
+                obstacleManager.AttachPlanned(instance, encounter);
+            }
 
             float endZ = nextSpawnZ + TrackSegment.ContractLength;
             activeSegments.Enqueue(new ActiveSegment(prefab, instance, endZ));
@@ -360,6 +405,9 @@ namespace EndlessRollball.Track
 
         private void Return(ActiveSegment active)
         {
+            if (obstacleManager != null)
+                obstacleManager.Release(active.Instance);
+
             environmentManager?.Release(active.Instance);
             active.Instance.Deactivate();
             active.Instance.transform.SetParent(poolRoot == null ? transform : poolRoot, false);
