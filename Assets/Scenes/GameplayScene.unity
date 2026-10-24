@@ -119,6 +119,110 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &24566426
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 24566427}
+  m_Layer: 0
+  m_Name: ObstaclePool
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &24566427
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 24566426}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 163069481}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &163069480
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 163069481}
+  - component: {fileID: 163069482}
+  m_Layer: 0
+  m_Name: ObstacleSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &163069481
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 163069480}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1034662097}
+  - {fileID: 24566427}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &163069482
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 163069480}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d6b77668af341a488c09f8ebd9fa681, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.ObstacleManager
+  activeRoot: {fileID: 1034662097}
+  poolRoot: {fileID: 24566427}
+  fixedPositionPrefabs:
+  - {fileID: 1536863617768247873, guid: 7c09312aa4d68f948904bc690802566c, type: 3}
+  - {fileID: 4601364679052194154, guid: 8b906b95d5c015045aa6ab9559af7c5c, type: 3}
+  - {fileID: 522574564812264697, guid: 0a944873067dfcc4da1f8ce842281983, type: 3}
+  - {fileID: 508166092985897497, guid: 3e8f7736b4aa41b4cae46ea3176cd674, type: 3}
+  - {fileID: 5332625501694367796, guid: e941ce40081c3ac43aa9682cf86f530c, type: 3}
+  movingPrefabs:
+  - {fileID: 3753455465813204699, guid: 87c98ad29d501714c8a65f5189d605d6, type: 3}
+  - {fileID: 5924688323188174336, guid: d2c3781e185f71c449e7b710ebada7b4, type: 3}
+  - {fileID: 6714134379508499110, guid: 02c3ae40543e052448d68ad2e3eddeea, type: 3}
+  - {fileID: 7465395553364355520, guid: 86981fe8fff445f4bad408947fb65487, type: 3}
+  - {fileID: 6628097433178051429, guid: c88de937fae686049a7f421a94f4ea51, type: 3}
+  movingFraction: 0.35
+  jumpableOnlyPrefabs:
+  - {fileID: 5105491805779380589, guid: 72287c85b0aff674f9889d5c78406417, type: 3}
+  - {fileID: 3594504724626246446, guid: a3f273e90924dce46ab18c117bec5b38, type: 3}
+  - {fileID: 8592280826870933214, guid: 5e1dc16c8ef32264ab757988247e53b0, type: 3}
+  - {fileID: 6067087425205181381, guid: 800c5f103acd271409ef34fee45f3f57, type: 3}
+  - {fileID: 1960735377629455303, guid: f40a3e7200475854ab7d83b21c40937b, type: 3}
+  - {fileID: 7001864171602191173, guid: f603d1b43e11d9b469b6d7178c3fa315, type: 3}
+  - {fileID: 1305528837668671700, guid: 0a053e88cec660d4f9fa1ccdea9f52f3, type: 3}
+  jumpFraction: 0.25
+  gapShareWithinJump: 0.5
+  encounterProbabilityMultiplier: 1.5
+  maxInactivePerPrefab: 2
 --- !u!1 &467182652
 GameObject:
   m_ObjectHideFlags: 0
@@ -177,6 +281,7 @@ MonoBehaviour:
   difficultyManager: {fileID: 467182655}
   poolRoot: {fileID: 1632638764}
   environmentManager: {fileID: 1655649669}
+  obstacleManager: {fileID: 163069482}
   startZ: -12
   aheadDistance: 144
   recycleBehindDistance: 24
@@ -554,6 +659,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 768843028}
   m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1034662096
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1034662097}
+  m_Layer: 0
+  m_Name: ActiveObstacles
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1034662097
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1034662096}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 163069481}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1102740243
 GameObject:
   m_ObjectHideFlags: 0
@@ -795,6 +931,7 @@ MonoBehaviour:
     directionalLightIntensity: 1
     roadSurfacePrefab: {fileID: 8127042453225506550, guid: d45e9149966587e44972a37fa064d4c5, type: 3}
     roadTrackPrefab: {fileID: 3187764758895009713, guid: 0de2e1db2fb5e1e4d972ba16ce1d43f4, type: 3}
+    gapTrackPrefab: {fileID: 7124646668281092053, guid: 1fe77323c00af8e44a9a33d1cec6b8cd, type: 3}
   beach:
     sceneryPrefabs:
     - {fileID: 7357216823944160225, guid: 1e3708472cf34c548a54e05385493c44, type: 3}
@@ -807,6 +944,7 @@ MonoBehaviour:
     directionalLightIntensity: 1
     roadSurfacePrefab: {fileID: 8012557029089290901, guid: 97a963abddc2c8d4286bd97151479ca6, type: 3}
     roadTrackPrefab: {fileID: 4688247653282594077, guid: f6a8b0d76d1b2cc4dba2c7d66c6c9eb2, type: 3}
+    gapTrackPrefab: {fileID: 3911007261913062820, guid: 9407f81a9b6b058429cc746f60d4ea2b, type: 3}
   dungeon:
     sceneryPrefabs:
     - {fileID: 8009890882721515432, guid: 16075c1027c3ea54aa63a3e861f39377, type: 3}
@@ -819,6 +957,7 @@ MonoBehaviour:
     directionalLightIntensity: 0
     roadSurfacePrefab: {fileID: 1958737641642620481, guid: c9748fa7e4c6c6745a769623d10924e9, type: 3}
     roadTrackPrefab: {fileID: 8683306687898440127, guid: 2d1231b283115a344b492a742866b292, type: 3}
+    gapTrackPrefab: {fileID: 7682446981815038299, guid: 5e5c930c7597e1745906e48724012a63, type: 3}
   dungeonBackgroundColor: {r: 0.025, g: 0.025, b: 0.035, a: 1}
 --- !u!1 &1708255651
 GameObject:
@@ -1302,6 +1441,7 @@ SceneRoots:
   - {fileID: 1825805482}
   - {fileID: 2114248218}
   - {fileID: 467182656}
+  - {fileID: 163069481}
   - {fileID: 1655649668}
   - {fileID: 1102740244}
   - {fileID: 1157105311}
