@@ -1,15 +1,17 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using EndlessRollball.Scenery;
 
 namespace EndlessRollball.Track
 {
-    public sealed class TrackGenerator : MonoBehaviour
+    public sealed partial class TrackGenerator : MonoBehaviour
     {
         [SerializeField] private Transform player;
         [SerializeField] private TrackCatalog catalog;
         [SerializeField] private DifficultyManager difficultyManager;
         [SerializeField] private Transform poolRoot;
+        [SerializeField] private EnvironmentManager environmentManager;
         [SerializeField] private float startZ = -12f;
         [SerializeField, Min(TrackSegment.ContractLength)] private float aheadDistance = 144f;
         [SerializeField, Min(0f)] private float recycleBehindDistance = 24f;
@@ -31,7 +33,20 @@ namespace EndlessRollball.Track
         public int ActiveSegmentCount => activeSegments.Count;
         public IReadOnlyList<string> GeneratedSequence => generatedSequence;
         public int CurrentSeed => currentRun.Seed;
-        public string TrackIdentifier => currentRun.TrackIdentifier;
+        public string TrackIdentifier => effectiveTrackIdentifier ?? currentRun.TrackIdentifier;
+        private string effectiveTrackIdentifier;
+
+        public event Action RunResetting;
+        public event Action RunPrepared;
+
+        public bool IsRunInitialized => initialized;
+
+        private bool generationPaused;
+
+        public void SetGenerationPaused(bool paused)
+        {
+            generationPaused = paused;
+        }
 
         private void Start()
         {
@@ -68,7 +83,6 @@ namespace EndlessRollball.Track
             }
 
             currentRun = runConfig;
-            candidates = catalog.BuildCandidates(runConfig.Mode);
             initialized = true;
             ResetRun();
         }
@@ -78,13 +92,14 @@ namespace EndlessRollball.Track
             if (!initialized)
             {
                 if (difficultyManager == null || !difficultyManager.IsConfigured)
-                {
                     return;
-                }
 
                 Initialize(difficultyManager.CurrentRun);
                 return;
             }
+
+            RunResetting?.Invoke();
+            generationPaused = false;
 
             ReturnAllSegments();
             random = new System.Random(currentRun.Seed);
@@ -92,7 +107,89 @@ namespace EndlessRollball.Track
             generatedSequence.Clear();
             nextSpawnZ = startZ;
             spawnedCount = 0;
+
+            GameMode runMode =
+                GameSessionSettings.SelectedMode ?? GameMode.Standard;
+
+            environmentManager?.BeginRun(
+                runMode, currentRun.Mode, currentRun.Seed, startZ);
+
+            if (catalog.RequiresThemeRoadSelection)
+            {
+                string roadReason = "Assign the active EnvironmentManager for this themed-road catalogue.";
+                if (environmentManager == null ||
+                    !environmentManager.TryValidatePlayableRoadTracks(currentRun.Mode, out roadReason))
+                {
+                    Debug.LogError($"Playable road initialization failed: {roadReason}", this);
+                    environmentManager?.EndRun();
+                    initialized = false;
+                    return;
+                }
+            }
+
+            candidates = catalog.BuildCandidates(currentRun.Mode);
+            effectiveTrackIdentifier = currentRun.TrackIdentifier;
+
+            bool scheduled = environmentManager != null &&
+                environmentManager.HasScheduledJourney;
+            bool suppressRandomTunnels = runMode == GameMode.FastPaced ||
+                (environmentManager != null &&
+                 environmentManager.SuppressRandomTunnels);
+
+            if (suppressRandomTunnels)
+            {
+                candidates.RemoveAll(
+                    candidate => candidate.Kind == TrackSegmentKind.Tunnel);
+            }
+
+            if (!TryConfigureFiniteRoute(runMode))
+            {
+                environmentManager?.EndRun();
+                initialized = false;
+                return;
+            }
+
+            if (scheduled || hasFiniteRoute)
+            {
+                TrackSegment safeFloor = catalog.FallbackSegment;
+                if (safeFloor == null ||
+                    safeFloor.Kind != TrackSegmentKind.Empty ||
+                    safeFloor.RequiredJump ||
+                    safeFloor.EntryLanes != TrackLaneMask.All ||
+                    safeFloor.SafeLanes != TrackLaneMask.All)
+                {
+                    Debug.LogError(
+                        "Scheduled journeys and finite finish corridors require " +
+                        "the catalogue's clear wide fallback with all lanes open.",
+                        this);
+                    environmentManager?.EndRun();
+                    hasFiniteRoute = false;
+                    initialized = false;
+                    return;
+                }
+            }
+
+            string environmentIdentifier = environmentManager != null
+                ? environmentManager.JourneyIdentifier : string.Empty;
+            if (!string.IsNullOrEmpty(environmentIdentifier))
+            {
+                effectiveTrackIdentifier =
+                    $"{currentRun.TrackIdentifier}-{environmentIdentifier}";
+            }
+            else if (runMode == GameMode.FastPaced)
+            {
+                effectiveTrackIdentifier =
+                    $"{currentRun.TrackIdentifier}-fastpaced-env5d-v1-no-tunnel";
+            }
+
+            if (hasFiniteRoute)
+                effectiveTrackIdentifier += "-" + finiteRouteIdentifier;
+
+            if (catalog.RequiresThemeRoadSelection)
+                effectiveTrackIdentifier += "-playable-roads-v1-straight-only";
+
             EnsureTrackAhead();
+            RunPrepared?.Invoke();
         }
 
         public void Reconfigure(DifficultyMode mode, int? seedOverride = null)
@@ -107,8 +204,14 @@ namespace EndlessRollball.Track
 
         public void Tick()
         {
+            if (!initialized || generationPaused)
+                return;
+
             RecyclePassedSegments();
             EnsureTrackAhead();
+
+            if (player != null)
+                environmentManager?.UpdateJourneyPresentation(player.position.z);
         }
 
         public void ConfigureForScene(
@@ -127,53 +230,100 @@ namespace EndlessRollball.Track
         {
             float playerZ = player == null ? 0f : player.position.z;
 
-            while (nextSpawnZ < playerZ + aheadDistance)
+            while (nextSpawnZ < playerZ + aheadDistance &&
+                   (!hasFiniteRoute || spawnedCount < finiteSegmentLimit))
             {
-                SpawnNextSegment(spawnedCount < safeStartingSegments);
+                if (!SpawnNextSegment(spawnedCount < safeStartingSegments))
+                    break;
             }
         }
 
-        private void SpawnNextSegment(bool forceSafeStart)
+        private bool SpawnNextSegment(bool forceSafeStart)
         {
             DifficultySnapshot snapshot = difficultyManager != null
-                ? difficultyManager.UpdateDistance(Mathf.Max(0f, player == null ? 0f : player.position.z))
-                : new DifficultySnapshot(currentRun.Mode, 6f, 3f, 0.25f, 0f, 0f);
+                ? difficultyManager.UpdateDistance(
+                    Mathf.Max(0f, player == null ? 0f : player.position.z))
+                : new DifficultySnapshot(
+                    currentRun.Mode, 6f, 3f, 0.25f, 0f, 0f);
 
-            TrackSelectionResult selection = TrackSelectionEngine.Select(
-                candidates,
-                random,
-                selectionState,
-                snapshot.ObstacleProbability,
-                forceSafeStart);
+            bool requiresClearTrack =
+                (environmentManager != null &&
+                 environmentManager.RequiresClearTrack(spawnedCount)) ||
+                IsFinishCorridor(spawnedCount);
 
             TrackSegment prefab;
-            if (selection.Success && selection.Candidate.Prefab != null)
+
+            if (catalog.RequiresThemeRoadSelection)
             {
-                prefab = selection.Candidate.Prefab;
-                selectionState = selection.NextState;
+                // The scheduled theme is resolved BEFORE acquiring a complete track.
+                // All current replacements are clear floors; obstacles will be a later milestone.
+                if (environmentManager == null ||
+                    !environmentManager.TryGetPlayableRoadTrack(spawnedCount, out prefab))
+                {
+                    Debug.LogError($"No playable themed road for segment {spawnedCount}; generation stopped.", this);
+                    generationPaused = true;
+                    return false;
+                }
+                UpdateSelectionStateForForcedSegment(prefab);
+            }
+            else if (requiresClearTrack)
+            {
+                prefab = catalog.FallbackSegment;
+                UpdateSelectionStateForForcedSegment(prefab);
             }
             else
             {
-                prefab = catalog.FallbackSegment;
-                TrackCandidate fallback = TrackCandidate.FromSegment(prefab, currentRun.Mode);
-                TrackLaneMask reachable = TrackLaneMaskUtility.ExpandAdjacent(selectionState.ReachableLanes)
-                    & fallback.EntryLanes
-                    & fallback.SafeLanes;
-                selectionState = new TrackSelectionState(
-                    reachable == TrackLaneMask.None ? TrackLaneMask.All : reachable,
-                    fallback.Kind);
-                Debug.LogWarning("No compatible weighted segment was available; using the safe fallback.", this);
+                TrackSelectionResult selection = TrackSelectionEngine.Select(
+                    candidates,
+                    random,
+                    selectionState,
+                    snapshot.ObstacleProbability,
+                    forceSafeStart);
+
+                if (selection.Success && selection.Candidate.Prefab != null)
+                {
+                    prefab = selection.Candidate.Prefab;
+                    selectionState = selection.NextState;
+                }
+                else
+                {
+                    prefab = catalog.FallbackSegment;
+                    UpdateSelectionStateForForcedSegment(prefab);
+                    Debug.LogWarning(
+                        "No compatible weighted segment was available; " +
+                        "using the safe fallback.",
+                        this);
+                }
             }
 
             TrackSegment instance = Acquire(prefab);
-            instance.transform.SetPositionAndRotation(new Vector3(0f, 0f, nextSpawnZ), Quaternion.identity);
+            instance.transform.SetPositionAndRotation(
+                new Vector3(0f, 0f, nextSpawnZ),
+                Quaternion.identity);
             instance.Activate(snapshot);
+
+            environmentManager?.Attach(instance, spawnedCount);
 
             float endZ = nextSpawnZ + TrackSegment.ContractLength;
             activeSegments.Enqueue(new ActiveSegment(prefab, instance, endZ));
             generatedSequence.Add(prefab.SegmentId);
             nextSpawnZ = endZ;
             spawnedCount++;
+            return true;
+        }
+
+        private void UpdateSelectionStateForForcedSegment(TrackSegment prefab)
+        {
+            TrackLaneMask reachable =
+                TrackLaneMaskUtility.ExpandAdjacent(selectionState.ReachableLanes)
+                & prefab.EntryLanes
+                & prefab.SafeLanes;
+
+            selectionState = new TrackSelectionState(
+                reachable == TrackLaneMask.None
+                    ? TrackLaneMask.All
+                    : reachable,
+                prefab.Kind);
         }
 
         private void RecyclePassedSegments()
@@ -210,6 +360,7 @@ namespace EndlessRollball.Track
 
         private void Return(ActiveSegment active)
         {
+            environmentManager?.Release(active.Instance);
             active.Instance.Deactivate();
             active.Instance.transform.SetParent(poolRoot == null ? transform : poolRoot, false);
 

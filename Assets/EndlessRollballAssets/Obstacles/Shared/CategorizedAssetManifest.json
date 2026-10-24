@@ -1,0 +1,1045 @@
+{
+    "scope": "30 standalone review prefabs; no automatic placement, scoring, collision-loss rules or scene changes.",
+    "placement": "Unit scale, +Z approach, Y=0 floor. Fixed obstacles can occupy one lane. Moving and JumpableOnly roots must be centred at road X=0. Route inner walls are X=+-4.5m.",
+    "modifications": "New wrappers, simple colliders, fitted source instances. Shared meshes and original materials unchanged. Jump rows use small X fitting to close tile seams; other payloads are uniformly scaled.",
+    "validation": "Editor authoring checks only. Jump clearance, motion, pooling, collision response and gameplay acceptance remain user review.",
+    "sources": [
+        {
+            "author": "Kenney",
+            "source": "https://kenney.nl/assets/survival-kit",
+            "license": "CC0",
+            "evidence": "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/License.txt"
+        },
+        {
+            "author": "Kay Lousberg",
+            "source": "https://kaylousberg.itch.io/resource-bits",
+            "license": "CC0",
+            "evidence": "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/License.txt"
+        },
+        {
+            "author": "Existing SimplePoly City imported pack; author not independently verified",
+            "source": "https://assetstore.unity.com/packages/3d/environments/simplepoly-city-low-poly-assets-58899",
+            "license": "Existing imported Unity Asset Store pack terms; NOT CC0. No new licence certification or redistribution permission asserted.",
+            "evidence": "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Prefab/Vehicles/Vehicle with Static Wheels"
+        }
+    ],
+    "obstacles": [
+        {
+            "name": "OBS_FIX_01_CratePyramid",
+            "category": "FixedPosition",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/FixedPosition/OBS_FIX_01_CratePyramid.prefab",
+            "useNotes": "Stationary payload; choose lane placement later. Not jump-proof or a scored task by itself.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/box.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_Kenney.mat"
+            ],
+            "visualSize": {
+                "x": 2.3299999237060549,
+                "y": 2.299999713897705,
+                "z": 1.149999976158142
+            },
+            "colliderSize": {
+                "x": 2.3299999237060549,
+                "y": 2.299999713897705,
+                "z": 1.149999976158142
+            },
+            "colliderCount": 3,
+            "triangles": 372,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 2.3299999237060549
+        },
+        {
+            "name": "OBS_FIX_02_CrateWall",
+            "category": "FixedPosition",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/FixedPosition/OBS_FIX_02_CrateWall.prefab",
+            "useNotes": "Stationary payload; choose lane placement later. Not jump-proof or a scored task by itself.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/box.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_Kenney.mat"
+            ],
+            "visualSize": {
+                "x": 2.1500000953674318,
+                "y": 2.0999999046325685,
+                "z": 1.0499999523162842
+            },
+            "colliderSize": {
+                "x": 2.1500000953674318,
+                "y": 2.0999999046325685,
+                "z": 1.0499999523162842
+            },
+            "colliderCount": 4,
+            "triangles": 496,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 2.1500000953674318
+        },
+        {
+            "name": "OBS_FIX_03_BarrelStack",
+            "category": "FixedPosition",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/FixedPosition/OBS_FIX_03_BarrelStack.prefab",
+            "useNotes": "Stationary payload; choose lane placement later. Not jump-proof or a scored task by itself.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/barrel.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_BarrelWood.mat"
+            ],
+            "visualSize": {
+                "x": 1.684999942779541,
+                "y": 2.4000000953674318,
+                "z": 0.824999988079071
+            },
+            "colliderSize": {
+                "x": 1.684999942779541,
+                "y": 2.4000000953674318,
+                "z": 0.824999988079071
+            },
+            "colliderCount": 3,
+            "triangles": 1236,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 1.684999942779541
+        },
+        {
+            "name": "OBS_FIX_04_MixedCargo",
+            "category": "FixedPosition",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/FixedPosition/OBS_FIX_04_MixedCargo.prefab",
+            "useNotes": "Stationary payload; choose lane placement later. Not jump-proof or a scored task by itself.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/barrel.fbx",
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/box.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_Kenney.mat",
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_BarrelWood.mat"
+            ],
+            "visualSize": {
+                "x": 2.2950000762939455,
+                "y": 2.25,
+                "z": 1.350000023841858
+            },
+            "colliderSize": {
+                "x": 2.2950000762939455,
+                "y": 2.25,
+                "z": 1.350000023841858
+            },
+            "colliderCount": 3,
+            "triangles": 660,
+            "materialCount": 2,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 2.2950000762939455
+        },
+        {
+            "name": "OBS_FIX_05_StoneColumn",
+            "category": "FixedPosition",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/FixedPosition/OBS_FIX_05_StoneColumn.prefab",
+            "useNotes": "Stationary payload; choose lane placement later. Not jump-proof or a scored task by itself.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Stone_Bricks_Stack_Large.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_KayKit.mat"
+            ],
+            "visualSize": {
+                "x": 1.4655911922454835,
+                "y": 2.4000000953674318,
+                "z": 1.581443428993225
+            },
+            "colliderSize": {
+                "x": 1.4655911922454835,
+                "y": 2.4000000953674318,
+                "z": 1.581443428993225
+            },
+            "colliderCount": 2,
+            "triangles": 2888,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 1.4655911922454835
+        },
+        {
+            "name": "OBS_FIX_06_RockMound",
+            "category": "FixedPosition",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/FixedPosition/OBS_FIX_06_RockMound.prefab",
+            "useNotes": "Stationary payload; choose lane placement later. Not jump-proof or a scored task by itself.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/rock-a.fbx",
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/rock-b.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_Kenney.mat"
+            ],
+            "visualSize": {
+                "x": 2.5,
+                "y": 1.083486557006836,
+                "z": 1.3545145988464356
+            },
+            "colliderSize": {
+                "x": 2.5,
+                "y": 1.083486557006836,
+                "z": 1.3545145988464356
+            },
+            "colliderCount": 3,
+            "triangles": 364,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 2.5
+        },
+        {
+            "name": "OBS_FIX_07_LumberTower",
+            "category": "FixedPosition",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/FixedPosition/OBS_FIX_07_LumberTower.prefab",
+            "useNotes": "Stationary payload; choose lane placement later. Not jump-proof or a scored task by itself.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Wood_Planks_Stack_Medium.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_KayKit.mat"
+            ],
+            "visualSize": {
+                "x": 1.87147855758667,
+                "y": 2.0999999046325685,
+                "z": 1.8143278360366822
+            },
+            "colliderSize": {
+                "x": 1.87147855758667,
+                "y": 2.0999999046325685,
+                "z": 1.8143278360366822
+            },
+            "colliderCount": 3,
+            "triangles": 2112,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 1.87147855758667
+        },
+        {
+            "name": "OBS_FIX_08_ParkedCompactCar",
+            "category": "FixedPosition",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/FixedPosition/OBS_FIX_08_ParkedCompactCar.prefab",
+            "useNotes": "Stationary payload; choose lane placement later. Not jump-proof or a scored task by itself.",
+            "eligibleThemes": [
+                "Street",
+                "Beach"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Prefab/Vehicles/Vehicle with Static Wheels/Vehicle_Car_color01.prefab"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Materials/Vehicle_Car_color01.mat"
+            ],
+            "visualSize": {
+                "x": 2.1996355056762697,
+                "y": 1.6323963403701783,
+                "z": 4.699999809265137
+            },
+            "colliderSize": {
+                "x": 2.1996355056762697,
+                "y": 1.6323963403701783,
+                "z": 4.699999809265137
+            },
+            "colliderCount": 1,
+            "triangles": 748,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 2.1996355056762697
+        },
+        {
+            "name": "OBS_FIX_09_ParkedSUV",
+            "category": "FixedPosition",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/FixedPosition/OBS_FIX_09_ParkedSUV.prefab",
+            "useNotes": "Stationary payload; choose lane placement later. Not jump-proof or a scored task by itself.",
+            "eligibleThemes": [
+                "Street",
+                "Beach"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Prefab/Vehicles/Vehicle with Static Wheels/Vehicle_SUV_color01.prefab"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Materials/Vehicle_SUV_color01.mat"
+            ],
+            "visualSize": {
+                "x": 2.299999952316284,
+                "y": 1.6874171495437623,
+                "z": 4.251880168914795
+            },
+            "colliderSize": {
+                "x": 2.299999952316284,
+                "y": 1.6874171495437623,
+                "z": 4.251880168914795
+            },
+            "colliderCount": 1,
+            "triangles": 624,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 2.299999952316284
+        },
+        {
+            "name": "OBS_FIX_10_DeliveryPickup",
+            "category": "FixedPosition",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/FixedPosition/OBS_FIX_10_DeliveryPickup.prefab",
+            "useNotes": "Stationary payload; choose lane placement later. Not jump-proof or a scored task by itself.",
+            "eligibleThemes": [
+                "Street",
+                "Beach"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Prefab/Vehicles/Vehicle with Static Wheels/Vehicle_Pick up Truck_color01.prefab"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Materials/Vehicle_Pick up Truck_color01.mat"
+            ],
+            "visualSize": {
+                "x": 2.299999952316284,
+                "y": 1.6874699592590333,
+                "z": 4.425085544586182
+            },
+            "colliderSize": {
+                "x": 2.299999952316284,
+                "y": 1.6874699592590333,
+                "z": 4.425085544586182
+            },
+            "colliderCount": 1,
+            "triangles": 694,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 2.299999952316284
+        },
+        {
+            "name": "OBS_NAV_01_SlidingCrates",
+            "category": "NavigateLeftRight",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/NavigateLeftRight/OBS_NAV_01_SlidingCrates.prefab",
+            "useNotes": "Road-centred kinematic lateral mover. Theme eligibility is metadata only until a future spawner enforces it.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/box.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_Kenney.mat"
+            ],
+            "visualSize": {
+                "x": 1.350000023841858,
+                "y": 2.249999761581421,
+                "z": 1.350000023841858
+            },
+            "colliderSize": {
+                "x": 1.350000023841858,
+                "y": 2.249999761581421,
+                "z": 1.350000023841858
+            },
+            "colliderCount": 2,
+            "triangles": 248,
+            "materialCount": 1,
+            "halfTravel": 2.700000047683716,
+            "speed": 1.2000000476837159,
+            "startPhase": 0.25,
+            "sweptWidth": 6.75
+        },
+        {
+            "name": "OBS_NAV_02_SlidingBarrels",
+            "category": "NavigateLeftRight",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/NavigateLeftRight/OBS_NAV_02_SlidingBarrels.prefab",
+            "useNotes": "Road-centred kinematic lateral mover. Theme eligibility is metadata only until a future spawner enforces it.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/barrel.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_BarrelWood.mat"
+            ],
+            "visualSize": {
+                "x": 2.0,
+                "y": 1.4545456171035767,
+                "z": 1.0
+            },
+            "colliderSize": {
+                "x": 2.0,
+                "y": 1.4545456171035767,
+                "z": 1.0
+            },
+            "colliderCount": 2,
+            "triangles": 824,
+            "materialCount": 1,
+            "halfTravel": 2.700000047683716,
+            "speed": 1.4500000476837159,
+            "startPhase": 0.75,
+            "sweptWidth": 7.400000095367432
+        },
+        {
+            "name": "OBS_NAV_03_SlidingStone",
+            "category": "NavigateLeftRight",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/NavigateLeftRight/OBS_NAV_03_SlidingStone.prefab",
+            "useNotes": "Road-centred kinematic lateral mover. Theme eligibility is metadata only until a future spawner enforces it.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Stone_Bricks_Stack_Large.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_KayKit.mat"
+            ],
+            "visualSize": {
+                "x": 1.6681369543075562,
+                "y": 1.3658409118652344,
+                "z": 1.7999999523162842
+            },
+            "colliderSize": {
+                "x": 1.6681369543075562,
+                "y": 1.3658409118652344,
+                "z": 1.7999999523162842
+            },
+            "colliderCount": 1,
+            "triangles": 1444,
+            "materialCount": 1,
+            "halfTravel": 2.700000047683716,
+            "speed": 1.7000000476837159,
+            "startPhase": 0.25,
+            "sweptWidth": 7.068137168884277
+        },
+        {
+            "name": "OBS_NAV_04_SlidingTimber",
+            "category": "NavigateLeftRight",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/NavigateLeftRight/OBS_NAV_04_SlidingTimber.prefab",
+            "useNotes": "Road-centred kinematic lateral mover. Theme eligibility is metadata only until a future spawner enforces it.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Wood_Log_Stack.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_KayKit.mat"
+            ],
+            "visualSize": {
+                "x": 1.4307212829589844,
+                "y": 1.429148554801941,
+                "z": 1.5999999046325684
+            },
+            "colliderSize": {
+                "x": 1.4307212829589844,
+                "y": 1.429148554801941,
+                "z": 1.5999999046325684
+            },
+            "colliderCount": 1,
+            "triangles": 3576,
+            "materialCount": 1,
+            "halfTravel": 2.700000047683716,
+            "speed": 1.9500000476837159,
+            "startPhase": 0.75,
+            "sweptWidth": 6.830721378326416
+        },
+        {
+            "name": "OBS_NAV_05_SlidingRocks",
+            "category": "NavigateLeftRight",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/NavigateLeftRight/OBS_NAV_05_SlidingRocks.prefab",
+            "useNotes": "Road-centred kinematic lateral mover. Theme eligibility is metadata only until a future spawner enforces it.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/rock-a.fbx",
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/rock-b.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_Kenney.mat"
+            ],
+            "visualSize": {
+                "x": 2.4000000953674318,
+                "y": 0.6520045399665833,
+                "z": 1.2999998331069947
+            },
+            "colliderSize": {
+                "x": 2.4000000953674318,
+                "y": 0.6520045399665833,
+                "z": 1.2999998331069947
+            },
+            "colliderCount": 2,
+            "triangles": 260,
+            "materialCount": 1,
+            "halfTravel": 2.700000047683716,
+            "speed": 1.2000000476837159,
+            "startPhase": 0.25,
+            "sweptWidth": 7.800000190734863
+        },
+        {
+            "name": "OBS_NAV_06_SlidingFence",
+            "category": "NavigateLeftRight",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/NavigateLeftRight/OBS_NAV_06_SlidingFence.prefab",
+            "useNotes": "Road-centred kinematic lateral mover. Theme eligibility is metadata only until a future spawner enforces it.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/fence-fortified.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_Kenney.mat"
+            ],
+            "visualSize": {
+                "x": 1.7392418384552003,
+                "y": 1.7999999523162842,
+                "z": 0.1844118982553482
+            },
+            "colliderSize": {
+                "x": 1.7392418384552003,
+                "y": 1.7999999523162842,
+                "z": 0.1844118982553482
+            },
+            "colliderCount": 1,
+            "triangles": 120,
+            "materialCount": 1,
+            "halfTravel": 2.700000047683716,
+            "speed": 1.4500000476837159,
+            "startPhase": 0.75,
+            "sweptWidth": 7.139242172241211
+        },
+        {
+            "name": "OBS_NAV_07_CrossingCompactCar",
+            "category": "NavigateLeftRight",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/NavigateLeftRight/OBS_NAV_07_CrossingCompactCar.prefab",
+            "useNotes": "Road-centred kinematic lateral mover. Theme eligibility is metadata only until a future spawner enforces it.",
+            "eligibleThemes": [
+                "Street",
+                "Beach"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Prefab/Vehicles/Vehicle with Static Wheels/Vehicle_Car_color02.prefab"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Materials/Vehicle_Car_color02.mat"
+            ],
+            "visualSize": {
+                "x": 4.5,
+                "y": 1.5629323720932007,
+                "z": 2.106034278869629
+            },
+            "colliderSize": {
+                "x": 4.5,
+                "y": 1.5629323720932007,
+                "z": 2.106034278869629
+            },
+            "colliderCount": 1,
+            "triangles": 748,
+            "materialCount": 1,
+            "halfTravel": 2.0999999046325685,
+            "speed": 1.7000000476837159,
+            "startPhase": 0.25,
+            "sweptWidth": 8.699999809265137
+        },
+        {
+            "name": "OBS_NAV_08_CrossingSUV",
+            "category": "NavigateLeftRight",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/NavigateLeftRight/OBS_NAV_08_CrossingSUV.prefab",
+            "useNotes": "Road-centred kinematic lateral mover. Theme eligibility is metadata only until a future spawner enforces it.",
+            "eligibleThemes": [
+                "Street",
+                "Beach"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Prefab/Vehicles/Vehicle with Static Wheels/Vehicle_SUV_color02.prefab"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Materials/Vehicle_SUV_color02.mat"
+            ],
+            "visualSize": {
+                "x": 4.159447193145752,
+                "y": 1.650733470916748,
+                "z": 2.249999761581421
+            },
+            "colliderSize": {
+                "x": 4.159447193145752,
+                "y": 1.650733470916748,
+                "z": 2.249999761581421
+            },
+            "colliderCount": 1,
+            "triangles": 624,
+            "materialCount": 1,
+            "halfTravel": 2.2702763080596926,
+            "speed": 1.9500000476837159,
+            "startPhase": 0.75,
+            "sweptWidth": 8.699999809265137
+        },
+        {
+            "name": "OBS_NAV_09_CrossingPickup",
+            "category": "NavigateLeftRight",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/NavigateLeftRight/OBS_NAV_09_CrossingPickup.prefab",
+            "useNotes": "Road-centred kinematic lateral mover. Theme eligibility is metadata only until a future spawner enforces it.",
+            "eligibleThemes": [
+                "Street",
+                "Beach"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Prefab/Vehicles/Vehicle with Static Wheels/Vehicle_Pick up Truck_color02.prefab"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Materials/Vehicle_Pick up Truck_color02.mat"
+            ],
+            "visualSize": {
+                "x": 4.328887462615967,
+                "y": 1.650785207748413,
+                "z": 2.249999761581421
+            },
+            "colliderSize": {
+                "x": 4.328887462615967,
+                "y": 1.650785207748413,
+                "z": 2.249999761581421
+            },
+            "colliderCount": 1,
+            "triangles": 694,
+            "materialCount": 1,
+            "halfTravel": 2.185556173324585,
+            "speed": 1.2000000476837159,
+            "startPhase": 0.25,
+            "sweptWidth": 8.699999809265137
+        },
+        {
+            "name": "OBS_NAV_10_CrossingTruck",
+            "category": "NavigateLeftRight",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/NavigateLeftRight/OBS_NAV_10_CrossingTruck.prefab",
+            "useNotes": "Road-centred kinematic lateral mover. Theme eligibility is metadata only until a future spawner enforces it.",
+            "eligibleThemes": [
+                "Street",
+                "Beach"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Prefab/Vehicles/Vehicle with Static Wheels/Vehicle_Truck_color02.prefab"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Street/SimplePoly City - Low Poly Assets/Materials/Vehicle_Truck_color02.mat"
+            ],
+            "visualSize": {
+                "x": 4.5,
+                "y": 1.677946925163269,
+                "z": 1.793383240699768
+            },
+            "colliderSize": {
+                "x": 4.5,
+                "y": 1.677946925163269,
+                "z": 1.793383240699768
+            },
+            "colliderCount": 1,
+            "triangles": 656,
+            "materialCount": 1,
+            "halfTravel": 2.0999999046325685,
+            "speed": 1.4500000476837159,
+            "startPhase": 0.75,
+            "sweptWidth": 8.699999809265137
+        },
+        {
+            "name": "OBS_JMP_01_LogRow",
+            "category": "JumpableOnly",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/JumpableOnly/OBS_JMP_01_LogRow.prefab",
+            "useNotes": "Road-centred full-width low barrier. No accepted-jump evidence, landing trigger or score integration yet.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Wood_Log_A.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_KayKit.mat"
+            ],
+            "visualSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.7082312703132629
+            },
+            "colliderSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.7082312703132629
+            },
+            "colliderCount": 1,
+            "triangles": 5292,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 9.0
+        },
+        {
+            "name": "OBS_JMP_02_TimberBundleRow",
+            "category": "JumpableOnly",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/JumpableOnly/OBS_JMP_02_TimberBundleRow.prefab",
+            "useNotes": "Road-centred full-width low barrier. No accepted-jump evidence, landing trigger or score integration yet.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Wood_Planks_Stack_Medium.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_KayKit.mat"
+            ],
+            "visualSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 1.8661653995513917
+            },
+            "colliderSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 1.8661653995513917
+            },
+            "colliderCount": 1,
+            "triangles": 3520,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 9.0
+        },
+        {
+            "name": "OBS_JMP_03_StoneBrickRow",
+            "category": "JumpableOnly",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/JumpableOnly/OBS_JMP_03_StoneBrickRow.prefab",
+            "useNotes": "Road-centred full-width low barrier. No accepted-jump evidence, landing trigger or score integration yet.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Stone_Brick.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_KayKit.mat"
+            ],
+            "visualSize": {
+                "x": 9.0,
+                "y": 0.7200000882148743,
+                "z": 1.7999991178512574
+            },
+            "colliderSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 1.7999991178512574
+            },
+            "colliderCount": 1,
+            "triangles": 352,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 9.0
+        },
+        {
+            "name": "OBS_JMP_04_LowCrateRow",
+            "category": "JumpableOnly",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/JumpableOnly/OBS_JMP_04_LowCrateRow.prefab",
+            "useNotes": "Road-centred full-width low barrier. No accepted-jump evidence, landing trigger or score integration yet.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/box.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_Kenney.mat"
+            ],
+            "visualSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.7200000286102295
+            },
+            "colliderSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.7200000286102295
+            },
+            "colliderCount": 1,
+            "triangles": 1488,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 9.0
+        },
+        {
+            "name": "OBS_JMP_05_FallenBarrelRow",
+            "category": "JumpableOnly",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/JumpableOnly/OBS_JMP_05_FallenBarrelRow.prefab",
+            "useNotes": "Road-centred full-width low barrier. No accepted-jump evidence, landing trigger or score integration yet.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/barrel.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_BarrelWood.mat"
+            ],
+            "visualSize": {
+                "x": 9.0,
+                "y": 0.7200000882148743,
+                "z": 0.7199997901916504
+            },
+            "colliderSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.7199997901916504
+            },
+            "colliderCount": 1,
+            "triangles": 3708,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 9.0
+        },
+        {
+            "name": "OBS_JMP_06_FenceRailRow",
+            "category": "JumpableOnly",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/JumpableOnly/OBS_JMP_06_FenceRailRow.prefab",
+            "useNotes": "Road-centred full-width low barrier. No accepted-jump evidence, landing trigger or score integration yet.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/fence.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_Kenney.mat"
+            ],
+            "visualSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.05952385440468788
+            },
+            "colliderSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.05952385440468788
+            },
+            "colliderCount": 1,
+            "triangles": 624,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 9.0
+        },
+        {
+            "name": "OBS_JMP_07_RubbleBand",
+            "category": "JumpableOnly",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/JumpableOnly/OBS_JMP_07_RubbleBand.prefab",
+            "useNotes": "Road-centred full-width low barrier. No accepted-jump evidence, landing trigger or score integration yet.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Stone_Chunks_Small.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_KayKit.mat"
+            ],
+            "visualSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.9772560596466065
+            },
+            "colliderSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.9772560596466065
+            },
+            "colliderCount": 1,
+            "triangles": 3324,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 9.0
+        },
+        {
+            "name": "OBS_JMP_08_FortifiedFenceRow",
+            "category": "JumpableOnly",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/JumpableOnly/OBS_JMP_08_FortifiedFenceRow.prefab",
+            "useNotes": "Road-centred full-width low barrier. No accepted-jump evidence, landing trigger or score integration yet.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/fence-fortified.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_Kenney.mat"
+            ],
+            "visualSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.07376476377248764
+            },
+            "colliderSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.07376476377248764
+            },
+            "colliderCount": 1,
+            "triangles": 1560,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 9.0
+        },
+        {
+            "name": "OBS_JMP_09_TextileBundleRow",
+            "category": "JumpableOnly",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/JumpableOnly/OBS_JMP_09_TextileBundleRow.prefab",
+            "useNotes": "Road-centred full-width low barrier. No accepted-jump evidence, landing trigger or score integration yet.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Textiles_Stack_Small.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_KayKit.mat"
+            ],
+            "visualSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 1.2248449325561524
+            },
+            "colliderSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 1.2248449325561524
+            },
+            "colliderCount": 1,
+            "triangles": 11676,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 9.0
+        },
+        {
+            "name": "OBS_JMP_10_IronBundleRow",
+            "category": "JumpableOnly",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/JumpableOnly/OBS_JMP_10_IronBundleRow.prefab",
+            "useNotes": "Road-centred full-width low barrier. No accepted-jump evidence, landing trigger or score integration yet.",
+            "eligibleThemes": [
+                "Street",
+                "Beach",
+                "Dungeon"
+            ],
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Iron_Bars_Stack_Small.fbx"
+            ],
+            "materials": [
+                "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_KayKit.mat"
+            ],
+            "visualSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.7680006623268127
+            },
+            "colliderSize": {
+                "x": 9.0,
+                "y": 0.7200000286102295,
+                "z": 0.7680006623268127
+            },
+            "colliderCount": 1,
+            "triangles": 7776,
+            "materialCount": 1,
+            "halfTravel": 0.0,
+            "speed": 0.0,
+            "startPhase": 0.0,
+            "sweptWidth": 9.0
+        }
+    ]
+}

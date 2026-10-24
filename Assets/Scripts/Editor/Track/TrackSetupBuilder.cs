@@ -11,7 +11,7 @@ namespace EndlessRollball.Editor
     // Generates the versioned graybox contract used by the procedural track tests.
     public static class TrackSetupBuilder
     {
-        private const string Root = "Assets/EndlessRollball";
+        private const string Root = "Assets/EndlessRollballAssets";
         private const string TrackPrefabFolder = Root + "/Prefabs/Track";
         private const string MaterialFolder = Root + "/Materials";
         private const string MeshFolder = Root + "/Meshes";
@@ -36,6 +36,9 @@ namespace EndlessRollball.Editor
 
         private static bool NeedsAdjustmentBuild()
         {
+            if (PlayableRoadTrackMigration.IsActive)
+                return false;
+
             DifficultyProfile easy = AssetDatabase.LoadAssetAtPath<DifficultyProfile>(
                 ResourceTrackFolder + "/Difficulty_Easy.asset");
             GameObject movingSweep = AssetDatabase.LoadAssetAtPath<GameObject>(
@@ -48,6 +51,12 @@ namespace EndlessRollball.Editor
         [MenuItem("Tools/Endless Rollball/Build Procedural Track Graybox")]
         public static void Build()
         {
+            if (PlayableRoadTrackMigration.IsActive)
+            {
+                Debug.LogWarning("Legacy graybox rebuild is disabled while the playable themed-road catalogue is active.");
+                return;
+            }
+
             try
             {
                 EnsureFolders();

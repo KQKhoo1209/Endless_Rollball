@@ -34,7 +34,7 @@ The active build scene list contains `MainMenuScene` followed by
 ## Project structure
 
 - `Assets/Scripts` — runtime, editor and gameplay systems
-- `Assets/EndlessRollball` — track, environment and UI assets
+- `Assets/EndlessRollballAssets` — track, environment and UI assets
 - `Assets/Tests` — Edit Mode and Play Mode tests
 - `ArtSource` — source-generation and environment audit utilities
 

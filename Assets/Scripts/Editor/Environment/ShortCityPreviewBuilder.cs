@@ -14,7 +14,7 @@ namespace EndlessRollball.Editor
         const string ScenePath = "Assets/Scenes/EnvironmentPreview.unity";
         const string Simple = "Assets/EndlessRollballAssets/SimplePoly City - Low Poly Assets/Prefab/";
         const string City = "Assets/EndlessRollballAssets/City Building/Models/FBX format/";
-        const string Materials = "Assets/EndlessRollball/Materials/Environment/ShortCityPreview";
+        const string Materials = "Assets/EndlessRollballAssets/Materials/Environment/ShortCityPreview";
         static readonly Dictionary<Material, Material> Converted = new Dictionary<Material, Material>();
 
         [MenuItem("Tools/Endless Rollball/Environment/Add Parked Street Vehicles %#&v")]

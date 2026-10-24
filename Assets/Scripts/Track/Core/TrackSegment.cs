@@ -15,6 +15,9 @@ namespace EndlessRollball.Track
         [SerializeField] private TrackLaneMask safeLanes = TrackLaneMask.All;
         [SerializeField] private bool requiredJump;
 
+        [Tooltip("Optional visual-only child. Zone fades hide this child without disabling floor collision.")]
+        [SerializeField] private GameObject presentationRoot;
+
         [Header("Selection weights")]
         [SerializeField, Min(0f)] private float easyWeight = 1f;
         [SerializeField, Min(0f)] private float normalWeight = 1f;
@@ -25,8 +28,8 @@ namespace EndlessRollball.Track
         public Transform EntryAnchor => entryAnchor;
         public Transform ExitAnchor => exitAnchor;
         public TrackSegmentKind Kind => kind;
-        public TrackLaneMask EntryLanes => entryLanes;
-        public TrackLaneMask SafeLanes => safeLanes;
+        public TrackLaneMask EntryLanes => entryLanes & TrackLaneMask.All;
+        public TrackLaneMask SafeLanes => safeLanes & TrackLaneMask.All;
         public bool RequiredJump => requiredJump;
         public bool IsObstacle => kind is TrackSegmentKind.Gap
             or TrackSegmentKind.StaticObstacle
@@ -54,6 +57,7 @@ namespace EndlessRollball.Track
 
         public void Activate(DifficultySnapshot difficulty)
         {
+            SetPresentationVisible(true);
             gameObject.SetActive(true);
 
             foreach (MovingObstacle obstacle in GetComponentsInChildren<MovingObstacle>(true))
@@ -65,6 +69,13 @@ namespace EndlessRollball.Track
         public void Deactivate()
         {
             gameObject.SetActive(false);
+        }
+
+        public void SetPresentationVisible(bool visible)
+        {
+            if (presentationRoot != null && presentationRoot != gameObject &&
+                presentationRoot.transform.IsChildOf(transform))
+                presentationRoot.SetActive(visible);
         }
 
         public bool IsContractValid(out string reason)

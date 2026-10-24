@@ -12,7 +12,7 @@ namespace EndlessRollball.Editor
 {
     public static partial class EnvironmentVisualBuilder
     {
-        private const string Root = "Assets/EndlessRollball";
+        private const string Root = "Assets/EndlessRollballAssets";
         private const string ArtRoot = Root + "/Art/Environment";
         private const string MaterialRoot = Root + "/Materials/Environment";
         private const string PrefabRoot = Root + "/Prefabs/Environment";
@@ -34,7 +34,7 @@ namespace EndlessRollball.Editor
                 new Color(0.10f, 0.42f, 0.48f),
                 new Color(0.02f, 0.76f, 0.90f),
                 new Color(0.08f, 0.16f, 0.23f),
-                "Assets/EndlessRollball/Skybox/ENV_FS_Skybox_CitySurround_v02.png",
+                "Assets/EndlessRollballAssets/Skybox/ENV_FS_Skybox_CitySurround_v02.png",
                 new Color(0.5f, 0.5f, 0.5f),
                 1.0f,
                 "ER_ENV_FuturisticStreet_01.png"),
@@ -47,7 +47,7 @@ namespace EndlessRollball.Editor
                 new Color(0.10f, 0.56f, 0.62f),
                 new Color(0.97f, 0.76f, 0.18f),
                 new Color(0.75f, 0.86f, 0.88f),
-                "Assets/EndlessRollball/Skybox/ENV_WP_Skybox_TropicalPark_v02.png",
+                "Assets/EndlessRollballAssets/Skybox/ENV_WP_Skybox_TropicalPark_v02.png",
                 new Color(0.5f, 0.5f, 0.5f),
                 1.0f,
                 "ER_ENV_WaterThemePark_01.png"),
@@ -60,7 +60,7 @@ namespace EndlessRollball.Editor
                 new Color(0.35f, 0.27f, 0.18f),
                 new Color(1.00f, 0.24f, 0.035f),
                 new Color(0.18f, 0.13f, 0.09f),
-                "Assets/EndlessRollball/Skybox/ENV_AD_Skybox_TreasureTemple_v02.png",
+                "Assets/EndlessRollballAssets/Skybox/ENV_AD_Skybox_TreasureTemple_v02.png",
                 new Color(0.5f, 0.5f, 0.5f),
                 1.15f,
                 "ER_ENV_AncientDungeon_01.png"),

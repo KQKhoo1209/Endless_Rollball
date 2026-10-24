@@ -1,0 +1,146 @@
+{
+    "scope": "Static physics-ready prefab art. Not spawned, scored, moving or gameplay-accepted.",
+    "modifications": "Source meshes/atlases unchanged; uniform scale, grouping, simple compound collision and URP material overrides on new prefabs only.",
+    "materials": [
+        "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_Kenney.mat",
+        "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_KayKit.mat",
+        "Assets/EndlessRollballAssets/Obstacles/Shared/Materials/MAT_OBS_Shared_BarrelWood.mat"
+    ],
+    "sources": [
+        {
+            "author": "Kenney",
+            "url": "https://kenney.nl/assets/survival-kit",
+            "license": "CC0",
+            "licenseFile": "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/License.txt"
+        },
+        {
+            "author": "Kay Lousberg",
+            "url": "https://kaylousberg.itch.io/resource-bits",
+            "license": "CC0",
+            "licenseFile": "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/License.txt"
+        }
+    ],
+    "obstacles": [
+        {
+            "name": "OBS_Shared_CrateStack",
+            "intendedRole": "NavigationCandidate",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/OBS_Shared_CrateStack.prefab",
+            "size": {
+                "x": 2.3600001335144045,
+                "y": 2.299999713897705,
+                "z": 1.149999976158142
+            },
+            "colliderSize": {
+                "x": 2.3600001335144045,
+                "y": 2.299999713897705,
+                "z": 1.149999976158142
+            },
+            "colliderCount": 3,
+            "triangles": 372,
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/box.fbx"
+            ]
+        },
+        {
+            "name": "OBS_Shared_BarrelCluster",
+            "intendedRole": "NavigationCandidate",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/OBS_Shared_BarrelCluster.prefab",
+            "size": {
+                "x": 1.7049999237060547,
+                "y": 2.4000000953674318,
+                "z": 0.824999988079071
+            },
+            "colliderSize": {
+                "x": 1.7049999237060547,
+                "y": 2.4000000953674318,
+                "z": 0.824999988079071
+            },
+            "colliderCount": 3,
+            "triangles": 1236,
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/barrel.fbx"
+            ]
+        },
+        {
+            "name": "OBS_Shared_StoneStack",
+            "intendedRole": "NavigationCandidate",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/OBS_Shared_StoneStack.prefab",
+            "size": {
+                "x": 1.5266574621200562,
+                "y": 2.5,
+                "z": 1.6473368406295777
+            },
+            "colliderSize": {
+                "x": 1.5266574621200562,
+                "y": 2.5,
+                "z": 1.6473368406295777
+            },
+            "colliderCount": 2,
+            "triangles": 2888,
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Stone_Bricks_Stack_Large.fbx"
+            ]
+        },
+        {
+            "name": "OBS_Shared_RockCluster",
+            "intendedRole": "NavigationCandidate",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/OBS_Shared_RockCluster.prefab",
+            "size": {
+                "x": 2.2899999618530275,
+                "y": 1.0231597423553467,
+                "z": 1.1982245445251465
+            },
+            "colliderSize": {
+                "x": 2.2899999618530275,
+                "y": 1.0231597423553467,
+                "z": 1.1982245445251465
+            },
+            "colliderCount": 3,
+            "triangles": 364,
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/rock-a.fbx",
+                "Assets/EndlessRollballAssets/Obstacles/kenney_survival-kit/Models/FBX format/rock-b.fbx"
+            ]
+        },
+        {
+            "name": "OBS_Shared_LowTimberBundle",
+            "intendedRole": "JumpOverCandidate",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/OBS_Shared_LowTimberBundle.prefab",
+            "size": {
+                "x": 2.3499999046325685,
+                "y": 0.43014127016067507,
+                "z": 1.1148816347122193
+            },
+            "colliderSize": {
+                "x": 2.3499999046325685,
+                "y": 0.43014127016067507,
+                "z": 1.1148816347122193
+            },
+            "colliderCount": 2,
+            "triangles": 1408,
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Wood_Planks_Stack_Medium.fbx"
+            ]
+        },
+        {
+            "name": "OBS_Shared_LowLogPair",
+            "intendedRole": "JumpOverCandidate",
+            "destination": "Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/OBS_Shared_LowLogPair.prefab",
+            "size": {
+                "x": 2.446553945541382,
+                "y": 0.6499999165534973,
+                "z": 0.6393753886222839
+            },
+            "colliderSize": {
+                "x": 2.446553945541382,
+                "y": 0.6499999165534973,
+                "z": 0.6499999165534973
+            },
+            "colliderCount": 2,
+            "triangles": 1512,
+            "modelSources": [
+                "Assets/EndlessRollballAssets/Obstacles/KayKit_ResourceBits_1.0_FREE/Assets/fbx(unity)/Wood_Log_A.fbx"
+            ]
+        }
+    ]
+}

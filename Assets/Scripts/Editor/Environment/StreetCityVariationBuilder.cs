@@ -78,7 +78,7 @@ namespace EndlessRollball.Editor
                 new[] { "building-f", "building-i", "building-l", "building-skyscraper-e" },
                 new[] { "building-a", "building-e", "building-m", "building-j" }
             };
-            Directory.CreateDirectory("Assets/EndlessRollball/Materials/Environment/ShortCityPreview");
+            Directory.CreateDirectory("Assets/EndlessRollballAssets/Materials/Environment/ShortCityPreview");
             AssetDatabase.Refresh();
             for (int variant = 0; variant < 2; variant++)
             {

@@ -11,11 +11,11 @@ namespace EndlessRollball.Editor.Environment
     public static class ImportedStreetAssetAudit
     {
         public const string CityModelPath =
-            "Assets/EndlessRollball/Prefabs/Environment/Street/source/city.fbx";
+            "Assets/EndlessRollballAssets/Prefabs/Environment/Street/source/city.fbx";
         public const string SmallTreesModelPath =
-            "Assets/EndlessRollball/Prefabs/Environment/Trees/small-trees/source/Small Trees.fbx";
+            "Assets/EndlessRollballAssets/Prefabs/Environment/Trees/small-trees/source/Small Trees.fbx";
         public const string PalmTreesModelPath =
-            "Assets/EndlessRollball/Prefabs/Environment/Trees/palm-trees/source/PalmTrees.fbx";
+            "Assets/EndlessRollballAssets/Prefabs/Environment/Trees/palm-trees/source/PalmTrees.fbx";
 
         private const string ReportPath = "Artifacts/EnvironmentAssetAudit/ImportedStreetAssets.md";
         private const string SessionAuditKey = "EndlessRollball.ImportedStreetAssetAudit.Version";

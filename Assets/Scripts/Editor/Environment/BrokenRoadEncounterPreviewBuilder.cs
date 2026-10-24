@@ -16,21 +16,21 @@ namespace EndlessRollball.Editor.Environment
     {
         private const string ScenePath = "Assets/Scenes/BrokenRoadEncounterPreview.unity";
         private const string VisualPrefabPath =
-            "Assets/EndlessRollball/Prefabs/Environment/FuturisticStreet/ENV_FS_BrokenRoadVisual.prefab";
-        private const string GapPrefabPath = "Assets/EndlessRollball/Prefabs/Track/TRK_Gap.prefab";
-        private const string WidePrefabPath = "Assets/EndlessRollball/Prefabs/Track/TRK_Straight_Wide.prefab";
+            "Assets/EndlessRollballAssets/Prefabs/Environment/FuturisticStreet/ENV_FS_BrokenRoadVisual.prefab";
+        private const string GapPrefabPath = "Assets/EndlessRollballAssets/Prefabs/Track/TRK_Gap.prefab";
+        private const string WidePrefabPath = "Assets/EndlessRollballAssets/Prefabs/Track/TRK_Straight_Wide.prefab";
         private const string MaterialFolder =
-            "Assets/EndlessRollball/Materials/Environment/FuturisticStreet/BrokenRoad";
+            "Assets/EndlessRollballAssets/Materials/Environment/FuturisticStreet/BrokenRoad";
         private const string TextureFolder =
-            "Assets/EndlessRollball/Art/Environment/FuturisticStreet/BrokenRoad";
+            "Assets/EndlessRollballAssets/Art/Environment/FuturisticStreet/BrokenRoad";
         private const string ImportedMaterialFolder =
-            "Assets/EndlessRollball/Materials/Environment/FuturisticStreet/Imported";
+            "Assets/EndlessRollballAssets/Materials/Environment/FuturisticStreet/Imported";
         private const string ImportedCityModelPath =
-            "Assets/EndlessRollball/Prefabs/Environment/Street/source/city.fbx";
+            "Assets/EndlessRollballAssets/Prefabs/Environment/Street/source/city.fbx";
         private const string ImportedSmallTreesModelPath =
-            "Assets/EndlessRollball/Prefabs/Environment/Trees/small-trees/source/Small Trees.fbx";
+            "Assets/EndlessRollballAssets/Prefabs/Environment/Trees/small-trees/source/Small Trees.fbx";
         private const string ImportedPalmTreesModelPath =
-            "Assets/EndlessRollball/Prefabs/Environment/Trees/palm-trees/source/PalmTrees.fbx";
+            "Assets/EndlessRollballAssets/Prefabs/Environment/Trees/palm-trees/source/PalmTrees.fbx";
         private const string CaptureFolder = "Artifacts/BrokenRoadEncounter";
         private const string SessionBuildVersionKey = "EndlessRollball.BrokenRoadPreview.BuildVersion";
         private const int CurrentBuildVersion = 6;
@@ -1034,7 +1034,7 @@ namespace EndlessRollball.Editor.Environment
 
         private static void CreateLegacyFuturisticStreetScenery(Transform parent)
         {
-            const string folder = "Assets/EndlessRollball/Prefabs/Environment/FuturisticStreet";
+            const string folder = "Assets/EndlessRollballAssets/Prefabs/Environment/FuturisticStreet";
             string[] moduleNames =
             {
                 "ENV_FS_Roadside_A",
@@ -1345,18 +1345,18 @@ namespace EndlessRollball.Editor.Environment
         private static void EnsureFolders()
         {
             EnsureFolder("Assets", "EndlessRollball");
-            EnsureFolder("Assets/EndlessRollball", "Art");
-            EnsureFolder("Assets/EndlessRollball/Art", "Environment");
-            EnsureFolder("Assets/EndlessRollball/Art/Environment", "FuturisticStreet");
-            EnsureFolder("Assets/EndlessRollball/Art/Environment/FuturisticStreet", "BrokenRoad");
-            EnsureFolder("Assets/EndlessRollball", "Materials");
-            EnsureFolder("Assets/EndlessRollball/Materials", "Environment");
-            EnsureFolder("Assets/EndlessRollball/Materials/Environment", "FuturisticStreet");
-            EnsureFolder("Assets/EndlessRollball/Materials/Environment/FuturisticStreet", "BrokenRoad");
-            EnsureFolder("Assets/EndlessRollball/Materials/Environment/FuturisticStreet", "Imported");
-            EnsureFolder("Assets/EndlessRollball", "Prefabs");
-            EnsureFolder("Assets/EndlessRollball/Prefabs", "Environment");
-            EnsureFolder("Assets/EndlessRollball/Prefabs/Environment", "FuturisticStreet");
+            EnsureFolder("Assets/EndlessRollballAssets", "Art");
+            EnsureFolder("Assets/EndlessRollballAssets/Art", "Environment");
+            EnsureFolder("Assets/EndlessRollballAssets/Art/Environment", "FuturisticStreet");
+            EnsureFolder("Assets/EndlessRollballAssets/Art/Environment/FuturisticStreet", "BrokenRoad");
+            EnsureFolder("Assets/EndlessRollballAssets", "Materials");
+            EnsureFolder("Assets/EndlessRollballAssets/Materials", "Environment");
+            EnsureFolder("Assets/EndlessRollballAssets/Materials/Environment", "FuturisticStreet");
+            EnsureFolder("Assets/EndlessRollballAssets/Materials/Environment/FuturisticStreet", "BrokenRoad");
+            EnsureFolder("Assets/EndlessRollballAssets/Materials/Environment/FuturisticStreet", "Imported");
+            EnsureFolder("Assets/EndlessRollballAssets", "Prefabs");
+            EnsureFolder("Assets/EndlessRollballAssets/Prefabs", "Environment");
+            EnsureFolder("Assets/EndlessRollballAssets/Prefabs/Environment", "FuturisticStreet");
             EnsureFolder("Assets", "Scenes");
         }
 

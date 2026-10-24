@@ -10,8 +10,12 @@ namespace EndlessRollball.Track
         [SerializeField] private TrackSegment fallbackSegment;
         [SerializeField] private TrackSegment[] segments = Array.Empty<TrackSegment>();
 
+        [Tooltip("Select a complete playable road using the environment schedule, not legacy obstacle-track weights.")]
+        [SerializeField] private bool requiresThemeRoadSelection;
+
         public TrackSegment FallbackSegment => fallbackSegment;
         public IReadOnlyList<TrackSegment> Segments => segments;
+        public bool RequiresThemeRoadSelection => requiresThemeRoadSelection;
 
         public List<TrackCandidate> BuildCandidates(DifficultyMode mode)
         {
@@ -69,6 +73,7 @@ namespace EndlessRollball.Track
         {
             fallbackSegment = configuredFallback;
             segments = configuredSegments ?? Array.Empty<TrackSegment>();
+            requiresThemeRoadSelection = false;
         }
     }
 }
