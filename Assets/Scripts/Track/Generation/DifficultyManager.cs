@@ -108,5 +108,12 @@ namespace EndlessRollball.Track
 
             return null;
         }
+
+        public DifficultySnapshot EvaluateForDistance(float distance)
+        {
+            return currentProfile == null
+                ? default
+                : currentProfile.Evaluate(Mathf.Max(0f, distance));
+        }
     }
 }

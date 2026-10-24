@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using EndlessRollball.Track;
+using UnityEngine;
 
 namespace EndlessRollball.Scenery
 {
@@ -28,7 +30,7 @@ namespace EndlessRollball.Scenery
                 }
                 if (!road.Supports(difficulty) || !IsClearRoad(road))
                 {
-                    reason = $"{theme} needs a clear all-lanes road supporting {difficulty}; new obstacles are not configured yet.";
+                    reason = $"{theme} needs a clear all-lanes road supporting {difficulty}. Keep the gap in its separate Gap Track Prefab field.";
                     return false;
                 }
             }
@@ -47,6 +49,51 @@ namespace EndlessRollball.Scenery
             ScenerySlot slot = GetScenerySlot(segmentIndex);
             prefab = GetSettings(slot.Theme).roadTrackPrefab;
             return prefab != null && IsClearRoad(prefab) && prefab.IsContractValid(out _);
+        }
+
+        internal bool TryValidatePlayableGapTracks(DifficultyMode difficulty, out string reason)
+        {
+            if (!TryValidatePlayableRoadTracks(difficulty, out reason))
+                return false;
+
+            var roads = new HashSet<TrackSegment>();
+            var gaps = new HashSet<TrackSegment>();
+            foreach (EnvironmentTheme theme in new[]
+                { EnvironmentTheme.Street, EnvironmentTheme.Water, EnvironmentTheme.Dungeon })
+            {
+                ThemeSettings settings = GetSettings(theme);
+                TrackSegment gap = settings.gapTrackPrefab;
+                if (gap == null || !roads.Add(settings.roadTrackPrefab) || !gaps.Add(gap))
+                {
+                    reason = $"Assign one distinct matching Gap Track Prefab and clear road for each theme ({theme}).";
+                    return false;
+                }
+                if (!gap.IsContractValid(out reason))
+                {
+                    reason = $"{theme} gap: {reason}";
+                    return false;
+                }
+                if (!gap.Supports(difficulty) || gap.Kind != TrackSegmentKind.Gap || !gap.RequiredJump ||
+                    gap.EntryLanes != TrackLaneMask.All || gap.SafeLanes != TrackLaneMask.All ||
+                    gap.transform.localScale != Vector3.one || gap.transform.localPosition != Vector3.zero ||
+                    gap.transform.localRotation != Quaternion.identity)
+                {
+                    reason = $"{theme} gap must be an identity-transform, all-lanes, required-jump Gap track supporting {difficulty}.";
+                    return false;
+                }
+            }
+            reason = string.Empty;
+            return true;
+        }
+
+        // The generator has already resolved the scheduled theme's clear road.
+        // Map that exact prefab, never CurrentTheme (which follows the player).
+        internal TrackSegment GetGapTrackForRoad(TrackSegment clearRoad)
+        {
+            foreach (ThemeSettings settings in new[] { street, beach, dungeon })
+                if (settings.roadTrackPrefab == clearRoad)
+                    return settings.gapTrackPrefab;
+            return null;
         }
 
         private static bool IsClearRoad(TrackSegment road)

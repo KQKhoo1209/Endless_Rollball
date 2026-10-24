@@ -31,6 +31,9 @@ namespace EndlessRollball.Track
         public TrackLaneMask EntryLanes => entryLanes & TrackLaneMask.All;
         public TrackLaneMask SafeLanes => safeLanes & TrackLaneMask.All;
         public bool RequiredJump => requiredJump;
+        public bool IsPresentationVisible =>
+            presentationRoot == null ||
+            presentationRoot.activeInHierarchy;
         public bool IsObstacle => kind is TrackSegmentKind.Gap
             or TrackSegmentKind.StaticObstacle
             or TrackSegmentKind.MovingObstacle;

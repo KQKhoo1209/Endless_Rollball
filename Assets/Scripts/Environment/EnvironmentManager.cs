@@ -29,6 +29,9 @@ namespace EndlessRollball.Scenery
             [Header("Playable road track")]
             [Tooltip("Complete 24m TrackSegment, including its visuals and floor collider.")]
             public TrackSegment roadTrackPrefab;
+
+            [Tooltip("Optional matching 24m gap track. Used only by the shared encounter planner; never replaces tunnel/finish floors.")]
+            public TrackSegment gapTrackPrefab;
         }
 
         [Header("Scene references")]
