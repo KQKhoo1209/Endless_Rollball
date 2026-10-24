@@ -18,7 +18,7 @@ from mathutils import Matrix
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BLENDER_WORKSPACE = Path(r"D:\Creative\Blender\Endless Rollball")
 SOURCE_ROOT = BLENDER_WORKSPACE / "Environment" / "PreviousVisualKits"
-UNITY_ROOT = PROJECT_ROOT / "Assets" / "EndlessRollball" / "Art" / "Environment"
+UNITY_ROOT = PROJECT_ROOT / "Assets" / "EndlessRollballAssets" / "Art" / "Environment"
 
 
 def reset_scene():
