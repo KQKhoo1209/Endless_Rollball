@@ -27,6 +27,8 @@ public sealed class BallMovement : MonoBehaviour
     private IGameplayInput gameplayInput;
     private bool isGrounded;
     private float lastJumpTime = float.NegativeInfinity;
+    private bool movementStopped;
+    private RigidbodyConstraints constraintsBeforeStop;
 
     private void Awake()
     {
@@ -44,6 +46,9 @@ public sealed class BallMovement : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (movementStopped)
+            return;
+
         GameplayCommand command = gameplayInput.ReadCommand();
 
         ApplySteering(command.Steering);
@@ -123,17 +128,52 @@ public sealed class BallMovement : MonoBehaviour
     public void ResetMotion(Vector3 worldPosition, Quaternion worldRotation)
     {
         if (ballRigidbody == null)
-        {
             ballRigidbody = GetComponent<Rigidbody>();
-        }
 
+        // Route planning reads the Transform immediately, before the next
+        // physics step. Keep it in sync with the Rigidbody teleport.
+        transform.SetPositionAndRotation(worldPosition, worldRotation);
         ballRigidbody.position = worldPosition;
         ballRigidbody.rotation = worldRotation;
+        ResumeMotion();
+    }
+
+    public void ResumeMotion()
+    {
+        if (ballRigidbody == null)
+            ballRigidbody = GetComponent<Rigidbody>();
+
+        if (movementStopped)
+            ballRigidbody.constraints = constraintsBeforeStop;
+
+        movementStopped = false;
         ballRigidbody.linearVelocity = Vector3.zero;
         ballRigidbody.angularVelocity = Vector3.zero;
         ballRigidbody.WakeUp();
         isGrounded = false;
         lastJumpTime = float.NegativeInfinity;
+
+        // KeyboardGameplayInput queues jump presses. Discard a pending
+        // command so input pressed on the completed screen is not replayed.
+        if (gameplayInput != null)
+            gameplayInput.ReadCommand();
+    }
+
+    public void StopMotionForCompletion()
+    {
+        if (ballRigidbody == null)
+            ballRigidbody = GetComponent<Rigidbody>();
+
+        if (movementStopped)
+            return;
+
+        constraintsBeforeStop = ballRigidbody.constraints;
+        movementStopped = true;
+        ballRigidbody.linearVelocity = Vector3.zero;
+        ballRigidbody.angularVelocity = Vector3.zero;
+        ballRigidbody.constraints = RigidbodyConstraints.FreezeAll;
+        ballRigidbody.Sleep();
+        isGrounded = false;
     }
 
     private IGameplayInput ResolveInputProvider()
