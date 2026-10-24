@@ -82,7 +82,7 @@ namespace EndlessRollball.Tests
         {
             string[] guids = AssetDatabase.FindAssets(
                 "t:Prefab",
-                new[] { "Assets/EndlessRollball/Prefabs/Track" });
+                new[] { "Assets/EndlessRollballAssets/Prefabs/Track" });
 
             Assert.That(guids.Length, Is.GreaterThanOrEqualTo(8));
 
@@ -110,7 +110,7 @@ namespace EndlessRollball.Tests
         [Test]
         public void GapPrefabContainsSixMetreVoidAndCurvedUnityCollider()
         {
-            const string path = "Assets/EndlessRollball/Prefabs/Track/TRK_Gap.prefab";
+            const string path = "Assets/EndlessRollballAssets/Prefabs/Track/TRK_Gap.prefab";
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             TrackSegment segment = prefab.GetComponent<TrackSegment>();
             Transform ramp = prefab.transform.Find("JumpRamp");
@@ -195,7 +195,7 @@ namespace EndlessRollball.Tests
 
             foreach (string modelName in modelNames)
             {
-                string path = $"Assets/EndlessRollball/Art/Track/{modelName}.fbx";
+                string path = $"Assets/EndlessRollballAssets/Art/Track/{modelName}.fbx";
                 GameObject model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 Assert.That(model, Is.Not.Null, path);
 
@@ -226,7 +226,7 @@ namespace EndlessRollball.Tests
         {
             string[] guids = AssetDatabase.FindAssets(
                 "t:Prefab",
-                new[] { "Assets/EndlessRollball/Prefabs/Track" });
+                new[] { "Assets/EndlessRollballAssets/Prefabs/Track" });
 
             foreach (string guid in guids)
             {
@@ -300,7 +300,7 @@ namespace EndlessRollball.Tests
             float expectedEndMovingSpeed)
         {
             DifficultyProfile profile = AssetDatabase.LoadAssetAtPath<DifficultyProfile>(
-                $"Assets/EndlessRollball/Resources/Track/Difficulty_{mode}.asset");
+                $"Assets/EndlessRollballAssets/Resources/Track/Difficulty_{mode}.asset");
             Assert.That(profile, Is.Not.Null);
             Assert.That(profile.TrackIdentifier, Is.EqualTo(expectedIdentifier));
 
@@ -318,7 +318,7 @@ namespace EndlessRollball.Tests
             Vector3 expectedSecond)
         {
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
-                $"Assets/EndlessRollball/Prefabs/Track/{prefabName}.prefab");
+                $"Assets/EndlessRollballAssets/Prefabs/Track/{prefabName}.prefab");
             MovingObstacle obstacle = prefab.GetComponentInChildren<MovingObstacle>(true);
             Assert.That(obstacle, Is.Not.Null, prefabName);
             Assert.That(obstacle.WaypointCount, Is.EqualTo(2), prefabName);

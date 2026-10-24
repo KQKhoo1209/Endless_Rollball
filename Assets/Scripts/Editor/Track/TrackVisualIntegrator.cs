@@ -10,8 +10,8 @@ namespace EndlessRollball.Editor
 {
     public static class TrackVisualIntegrator
     {
-        private const string PrefabFolder = "Assets/EndlessRollball/Prefabs/Track";
-        private const string ModelFolder = "Assets/EndlessRollball/Art/Track";
+        private const string PrefabFolder = "Assets/EndlessRollballAssets/Prefabs/Track";
+        private const string ModelFolder = "Assets/EndlessRollballAssets/Art/Track";
 
         private static readonly VisualBinding[] Bindings =
         {
@@ -30,7 +30,8 @@ namespace EndlessRollball.Editor
         {
             EditorApplication.delayCall += () =>
             {
-                if (AllRequiredModelsExist() && !HasIntegratedVisual("TRK_Straight_Wide"))
+                if (!PlayableRoadTrackMigration.IsActive &&
+                    AllRequiredModelsExist() && !HasIntegratedVisual("TRK_Straight_Wide"))
                 {
                     Integrate();
                 }
@@ -39,6 +40,9 @@ namespace EndlessRollball.Editor
 
         public static bool TryIntegrateIfReady()
         {
+            if (PlayableRoadTrackMigration.IsActive)
+                return false;
+
             if (!AllRequiredModelsExist())
             {
                 return false;
@@ -51,6 +55,12 @@ namespace EndlessRollball.Editor
         [MenuItem("Tools/Endless Rollball/Integrate Track Visuals")]
         public static void Integrate()
         {
+            if (PlayableRoadTrackMigration.IsActive)
+            {
+                Debug.LogWarning("Legacy track-visual integration is disabled while playable themed roads are active.");
+                return;
+            }
+
             ValidateSegmentModel("TRK_Straight_Wide", 24f);
             ValidateSegmentModel("TRK_Straight_Narrow", 24f);
             ValidateSegmentModel("TRK_Gap", 24f);

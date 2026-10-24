@@ -10,8 +10,8 @@ namespace EndlessRollball.Tests
 {
     public sealed class EnvironmentVisualAssetTests
     {
-        private const string EnvironmentPrefabRoot = "Assets/EndlessRollball/Prefabs/Environment";
-        private const string EnvironmentArtRoot = "Assets/EndlessRollball/Art/Environment";
+        private const string EnvironmentPrefabRoot = "Assets/EndlessRollballAssets/Prefabs/Environment";
+        private const string EnvironmentArtRoot = "Assets/EndlessRollballAssets/Art/Environment";
 
         [Test]
         public void EnvironmentPrefabsAreVisualOnly()
