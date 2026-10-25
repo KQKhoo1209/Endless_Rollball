@@ -4,206 +4,505 @@ using UnityEngine.InputSystem;
 
 namespace EndlessRollball.Track
 {
+    public enum SessionOutcome { Completed, Collision, Fall, Stopped }
+    public enum SessionFlowState { Preparing, Running, Paused, Ending, Results, SetupError, Recovering }
+
+    // Temporary in-memory end data, NOT the persisted Chapter 4 SessionSummary.
+    public sealed class SessionEndInfo
+    {
+        public string SessionId { get; }
+        public SessionOutcome Outcome { get; }
+        public double ActiveDurationSeconds { get; }
+        public int TrackSeed { get; }
+        public string TrackIdentifier { get; }
+        public SessionScore Score { get; }
+        public double? PlannedRouteDurationSeconds { get; }
+
+        public SessionEndInfo(string id, SessionOutcome outcome, double seconds,
+            int seed, string trackIdentifier, SessionScore score, double? plannedDuration)
+        {
+            SessionId = id;
+            Outcome = outcome;
+            ActiveDurationSeconds = seconds;
+            TrackSeed = seed;
+            TrackIdentifier = trackIdentifier;
+            Score = score;
+            PlannedRouteDurationSeconds = plannedDuration;
+        }
+    }
+
+    [DisallowMultipleComponent]
     public sealed class GameplayRunController : MonoBehaviour
     {
         [SerializeField] private BallMovement ballMovement;
         [SerializeField] private TrackGenerator trackGenerator;
-        [SerializeField]
-        private Vector3 spawnPosition =
-            new Vector3(0f, 0.75f, 0f);
+        [SerializeField, HideInInspector] private Vector3 spawnPosition = new Vector3(0f, .75f, 0f);
         [SerializeField] private float fallThreshold = -5f;
-
-        [Header("Finite finish gate - Stage 6C")]
         [SerializeField] private GameObject finishGatePrefab;
 
-        public bool IsCompleted { get; private set; }
+        [Header("Stage 7C-1A")]
+        [SerializeField] private PlayerHazardContact hazardContact;
+        [SerializeField] private SessionFlowUI sessionUI;
+        [SerializeField] private SessionTaskTracker taskTracker;
+        [Tooltip("Assign the CameraFollow component, NOT the Camera or BallMovement.")]
+        [SerializeField] private Behaviour gameplayCameraFollow;
+
+        [Header("Finite-mode respawn")]
+        [SerializeField, Min(0f)] private float respawnDelaySeconds = 1f;
+        [SerializeField, Min(0f)] private float respawnFlashSeconds = 3f;
+        [SerializeField, Min(.1f)] private float respawnBlinkInterval = .25f;
+
+        [Header("Finite finish presentation")]
+        [SerializeField, Min(.1f)] private float finishFireworksSeconds = 5f;
+        [SerializeField, Min(.05f)] private float finishFadeOutSeconds = .6f;
+        [SerializeField, Min(.05f)] private float finishFadeInSeconds = .6f;
+        [SerializeField, Min(.1f)] private float finishSlowdownSeconds = 2f;
+
+        public SessionFlowState State { get; private set; } = SessionFlowState.Preparing;
+        public SessionEndInfo EndInfo { get; private set; }
+        public bool IsCompleted => EndInfo != null && EndInfo.Outcome == SessionOutcome.Completed;
         public event Action Completed;
+        public DifficultyMode TrackDifficulty => trackGenerator.CurrentDifficulty;
+
+        public double ActiveDurationSeconds => activeSeconds +
+            (State == SessionFlowState.Running
+                ? Math.Max(0d, Time.timeAsDouble - activeIntervalStart) : 0d);
 
         private TrackGenerator subscribedGenerator;
         private GameObject finishGateInstance;
         private FinishGateTrigger finishGateTrigger;
-        private bool runReady;
-        private bool planHandled;
-        private bool hasStarted;
+        private bool started;
+        private bool initialRunStarted;
+        private bool ownsClock;
+        private bool cameraWasEnabled;
+        private float savedTimeScale = 1f;
+        private double activeSeconds;
+        private double activeIntervalStart;
+        private string sessionId;
+        private int discardInputThroughFrame = -1;
+        private float recoveryMinimumZ;
+        private double recoveryReadyAt;
+        private double recoveryStartedAt;
+        private BallShatterEffect ballShatter;
+        private bool respawnFlashing;
+        private float respawnFlashElapsed;
+        private Renderer[] respawnRenderers = Array.Empty<Renderer>();
+        private bool[] rendererEnabledBeforeFlash = Array.Empty<bool>();
+        private enum FinishPhase { None, Fireworks, FadeOut, Covered, FadeIn }
+        private FinishPhase finishPhase;
+        private double finishPhaseStartedAt;
+        private int finishCoveredFrame;
+        private FinishCelebrationEffect finishCelebration;
 
         private void OnEnable()
         {
             SubscribeToGenerator();
-
-            // Re-enabling an unfinished run may resume its current plan.
-            // A completed run stays completed until an explicit restart.
-            if (hasStarted && !IsCompleted &&
-                trackGenerator != null && trackGenerator.IsRunInitialized)
-                HandleRunPrepared();
         }
 
         private void Start()
         {
-            hasStarted = true;
-            if (ballMovement == null || trackGenerator == null)
+            started = true;
+            if (ballMovement == null || trackGenerator == null ||
+                sessionUI == null || !sessionUI.IsConfigured ||
+                hazardContact == null || !hazardContact.IsConfiguredFor(this, ballMovement) ||
+                taskTracker == null || !taskTracker.IsConfiguredFor(this, ballMovement) ||
+                gameplayCameraFollow == null)
             {
-                FailSetup("Assign BallMovement and TrackGenerator.");
+                FailSetup("Assign the ball, generator, configured UI/contact reporter and CameraFollow.");
                 return;
             }
-
-            // All OnEnable subscriptions exist before scene Start calls,
-            // but this also handles a generator that was already ready.
-            if (!planHandled && trackGenerator.IsRunInitialized)
+            sessionUI.HidePanels();
+            if (!initialRunStarted && trackGenerator.IsRunInitialized)
                 HandleRunPrepared();
         }
 
         private void Update()
         {
-            if (ballMovement == null)
-                return;
-
-            bool restartPressed =
-                Keyboard.current?.rKey.wasPressedThisFrame ?? false;
-            if (restartPressed)
+            UpdateRespawnFlash();
+            if (State == SessionFlowState.Running &&
+                ballMovement.transform.position.y < fallThreshold)
             {
-                RestartRun();
+                HandleFailure(SessionOutcome.Fall);
                 return;
             }
-
-            if (runReady && !IsCompleted &&
-                ballMovement.transform.position.y < fallThreshold)
-                RestartRun();
+            if (Keyboard.current?.escapeKey.wasPressedThisFrame ?? false)
+            {
+                if (State == SessionFlowState.Running) PauseSession();
+                else if (State == SessionFlowState.Paused) ResumeSession();
+            }
         }
 
-        public void RestartRun()
+        private void LateUpdate()
         {
-            if (ballMovement == null || trackGenerator == null)
+            if (State == SessionFlowState.Ending && finishPhase != FinishPhase.None)
+                UpdateFinishPresentation();
+            // Collision callbacks latch once; teleport only after the physics step has finished.
+            if (State == SessionFlowState.Recovering)
             {
-                FailSetup("Cannot restart without ball and generator.");
+                ballShatter?.Sample((float)(Time.unscaledTimeAsDouble - recoveryStartedAt),
+                    (float)(recoveryReadyAt - recoveryStartedAt));
+                if (Time.unscaledTimeAsDouble >= recoveryReadyAt) CompleteRecovery();
+            }
+            // All input-provider Updates have finished before this drain.
+            if (ballMovement != null &&
+                (State != SessionFlowState.Running || Time.frameCount <= discardInputThroughFrame))
+                ballMovement.DiscardBufferedInput();
+        }
+
+        public void PauseSession()
+        {
+            if (State != SessionFlowState.Running) return;
+            taskTracker.ObservePlayer();
+            CaptureActiveInterval();
+            State = SessionFlowState.Paused;
+            trackGenerator.SetGenerationPaused(true);
+            HoldClockAndCamera();
+            if (respawnFlashing) SetRespawnVisibility(true);
+            sessionUI.ShowPause();
+            // Do not stop/reset the Rigidbody: its exact pose/velocity is retained.
+        }
+
+        public void ResumeSession()
+        {
+            if (State != SessionFlowState.Paused) return;
+            ballMovement.DiscardBufferedInput();
+            discardInputThroughFrame = Time.frameCount;
+            sessionUI.HidePanels();
+            ReleaseClockAndCamera();
+            activeIntervalStart = Time.timeAsDouble;
+            State = SessionFlowState.Running;
+            trackGenerator.SetGenerationPaused(false);
+            // No ResumeMotion, ResetMotion, ResetRun or scene reload here.
+        }
+
+        public void EndSessionFromPause()
+        {
+            if (State == SessionFlowState.Paused)
+                EndSessionOnce(SessionOutcome.Stopped);
+        }
+
+        public void ReportObstacleCollision(Collider relatedHazard = null)
+        {
+            if (State == SessionFlowState.Running)
+                HandleFailure(SessionOutcome.Collision, relatedHazard);
+        }
+
+        private void HandleFailure(SessionOutcome outcome, Collider relatedHazard = null)
+        {
+            if (State != SessionFlowState.Running) return;
+            if (!trackGenerator.HasFiniteRoute)
+            {
+                EndSessionOnce(outcome, relatedHazard); // Endless remains terminal.
                 return;
             }
+            CaptureActiveInterval();
+            State = SessionFlowState.Recovering;
+            StopRespawnFlash();
+            trackGenerator.SetGenerationPaused(true);
+            HoldClockAndCamera();
+            ballMovement.StopMotionForCompletion();
+            recoveryMinimumZ = taskTracker.RecordFailure(outcome, relatedHazard);
+            recoveryStartedAt = Time.unscaledTimeAsDouble;
+            recoveryReadyAt = recoveryStartedAt + Mathf.Max(0f, respawnDelaySeconds);
+            if (ballShatter == null) ballShatter = new BallShatterEffect();
+            ballShatter.Play(ballMovement);
+        }
 
-            // Must precede route planning: Stage 6B captures start Z.
-            runReady = false;
-            ballMovement.ResetMotion(spawnPosition, Quaternion.identity);
-            trackGenerator.ResetRun();
+        private void CompleteRecovery()
+        {
+            if (!taskTracker.TryGetRecoveryPoint(recoveryMinimumZ, trackGenerator.FinishLineZ, out Vector3 position))
+            {
+                FailSetup("No safe generated road support after the failed challenge; recovery stopped.");
+                return;
+            }
+            ballShatter?.Stop();
+            taskTracker.PrepareRecoveryArrival(position.z);
+            ReleaseClockAndCamera();
+            ballMovement.ResetMotion(position, Quaternion.identity);
+            ballMovement.DiscardBufferedInput();
+            discardInputThroughFrame = Time.frameCount;
+            if (gameplayCameraFollow is CameraFollow follow) follow.SnapToTarget();
+            activeIntervalStart = Time.timeAsDouble;
+            State = SessionFlowState.Running;
+            trackGenerator.SetGenerationPaused(false);
+            BeginRespawnFlash();
+            Debug.Log($"Finite session recovered after failed challenge at Z={position.z:F2}; scores and seed retained.", this);
+        }
+
+        private void BeginRespawnFlash()
+        {
+            StopRespawnFlash();
+            if (respawnFlashSeconds <= 0f) return;
+            respawnRenderers = ballMovement.GetComponentsInChildren<Renderer>(true);
+            rendererEnabledBeforeFlash = new bool[respawnRenderers.Length];
+            for (int i = 0; i < respawnRenderers.Length; i++)
+                rendererEnabledBeforeFlash[i] = respawnRenderers[i].enabled;
+            respawnFlashElapsed = 0f;
+            respawnFlashing = true;
+        }
+
+        private void UpdateRespawnFlash()
+        {
+            if (!respawnFlashing || State != SessionFlowState.Running) return;
+            respawnFlashElapsed += Time.deltaTime;
+            if (respawnFlashElapsed >= respawnFlashSeconds)
+            {
+                StopRespawnFlash();
+                return;
+            }
+            bool visible = Mathf.FloorToInt(respawnFlashElapsed / Mathf.Max(.1f, respawnBlinkInterval)) % 2 == 0;
+            SetRespawnVisibility(visible);
+        }
+
+        private void SetRespawnVisibility(bool visible)
+        {
+            // Only renderers blink. Keep the ball, physics, colliders and task evidence active.
+            for (int i = 0; i < respawnRenderers.Length; i++)
+                if (respawnRenderers[i] != null)
+                    respawnRenderers[i].enabled = visible && rendererEnabledBeforeFlash[i];
+        }
+
+        private void StopRespawnFlash()
+        {
+            SetRespawnVisibility(true);
+            respawnFlashing = false;
+            respawnRenderers = Array.Empty<Renderer>();
+            rendererEnabledBeforeFlash = Array.Empty<bool>();
+        }
+
+        private void CompleteRun()
+        {
+            if (State == SessionFlowState.Running && trackGenerator.HasFiniteRoute)
+                EndSessionOnce(SessionOutcome.Completed);
+        }
+
+        private void EndSessionOnce(SessionOutcome outcome, Collider relatedHazard = null)
+        {
+            if (State != SessionFlowState.Running && State != SessionFlowState.Paused)
+                return;
+            if (outcome == SessionOutcome.Completed && !trackGenerator.HasFiniteRoute)
+                return;
+
+            if (State == SessionFlowState.Running) CaptureActiveInterval();
+            State = SessionFlowState.Ending; // Latch before stopping physics/callbacks.
+            ballShatter?.Stop();
+            StopRespawnFlash();
+            trackGenerator.SetGenerationPaused(true);
+            if (outcome == SessionOutcome.Completed)
+            {
+                HoldCamera(); // Retain the finish composition while the ball rolls through it.
+                ballMovement.BeginFinishRoll(trackGenerator.FinishLineZ, finishSlowdownSeconds);
+            }
+            else
+            {
+                HoldClockAndCamera();
+                ballMovement.StopMotionForCompletion();
+            }
+            if (outcome == SessionOutcome.Completed) finishGateTrigger?.Disarm();
+            else HideFinishGate();
+            SessionScore score = taskTracker.FinalizeSession(outcome, relatedHazard);
+            EndInfo = new SessionEndInfo(sessionId, outcome, activeSeconds,
+                trackGenerator.CurrentSeed, trackGenerator.TrackIdentifier, score,
+                trackGenerator.HasFiniteRoute ? (double?)trackGenerator.PlannedRouteDurationSeconds : null);
+
+            // 7C-1B will insert short, unscaled failure feedback HERE.
+            // The immutable ending/duration already exist; do not reset the route.
+            Debug.Log($"Session ended: {EndInfo.SessionId} | {outcome} | active={activeSeconds:F2}s", this);
+            if (outcome == SessionOutcome.Completed)
+            {
+                sessionUI.ShowEndingPresentation();
+                if (finishCelebration == null) finishCelebration = new FinishCelebrationEffect();
+                finishCelebration.Play(gameObject.scene, new Vector3(0f, 0f, trackGenerator.FinishLineZ),
+                    Mathf.Max(.1f, finishFireworksSeconds));
+                finishPhase = FinishPhase.Fireworks;
+                finishPhaseStartedAt = Time.unscaledTimeAsDouble;
+                return;
+            }
+            State = SessionFlowState.Results;
+            sessionUI.ShowResult(EndInfo);
+        }
+
+        private void UpdateFinishPresentation()
+        {
+            // Physics keeps advancing during the rollout, but scored gameplay already ended at the gate.
+            if (ballMovement.IsFinishRollComplete) HoldClockAndCamera();
+            float elapsed = (float)(Time.unscaledTimeAsDouble - finishPhaseStartedAt);
+            switch (finishPhase)
+            {
+                case FinishPhase.Fireworks:
+                    finishCelebration.TickFireworks(elapsed, Mathf.Max(.1f, finishFireworksSeconds));
+                    if (elapsed < Mathf.Max(.1f, finishFireworksSeconds) || !ballMovement.IsFinishRollComplete) return;
+                    finishPhase = FinishPhase.FadeOut;
+                    finishPhaseStartedAt = Time.unscaledTimeAsDouble;
+                    break;
+                case FinishPhase.FadeOut:
+                    float cover = Mathf.Clamp01(elapsed / Mathf.Max(.05f, finishFadeOutSeconds));
+                    finishCelebration.SetFade(Mathf.SmoothStep(0f, 1f, cover));
+                    if (cover < 1f) return;
+                    finishPhase = FinishPhase.Covered;
+                    finishCoveredFrame = Time.frameCount;
+                    break;
+                case FinishPhase.Covered:
+                    // Render a completely covered frame before swapping to the existing results panel.
+                    if (Time.frameCount <= finishCoveredFrame) return;
+                    finishCelebration.ClearFireworks();
+                    sessionUI.ShowResult(EndInfo);
+                    finishPhase = FinishPhase.FadeIn;
+                    finishPhaseStartedAt = Time.unscaledTimeAsDouble;
+                    break;
+                case FinishPhase.FadeIn:
+                    float reveal = Mathf.Clamp01(elapsed / Mathf.Max(.05f, finishFadeInSeconds));
+                    finishCelebration.SetFade(1f - Mathf.SmoothStep(0f, 1f, reveal));
+                    if (reveal < 1f) return;
+                    StopFinishPresentation();
+                    State = SessionFlowState.Results;
+                    Completed?.Invoke();
+                    break;
+            }
+        }
+
+        private void StopFinishPresentation()
+        {
+            finishPhase = FinishPhase.None;
+            finishCelebration?.Stop();
+        }
+
+        private void CaptureActiveInterval()
+        {
+            activeSeconds += Math.Max(0d, Time.timeAsDouble - activeIntervalStart);
+            activeIntervalStart = Time.timeAsDouble;
+        }
+
+        private void HoldClockAndCamera()
+        {
+            HoldCamera();
+            Time.timeScale = 0f;
+        }
+
+        private void HoldCamera()
+        {
+            if (!ownsClock)
+            {
+                savedTimeScale = Time.timeScale > 0f ? Time.timeScale : 1f;
+                cameraWasEnabled = gameplayCameraFollow != null && gameplayCameraFollow.enabled;
+                ownsClock = true;
+            }
+            if (gameplayCameraFollow != null) gameplayCameraFollow.enabled = false;
+        }
+
+        private void ReleaseClockAndCamera()
+        {
+            if (!ownsClock) return;
+            Time.timeScale = savedTimeScale;
+            if (gameplayCameraFollow != null) gameplayCameraFollow.enabled = cameraWasEnabled;
+            ownsClock = false;
         }
 
         private void HandleRunResetting()
         {
-            runReady = false;
-            planHandled = false;
-            IsCompleted = false;
+            if (initialRunStarted)
+            {
+                FailSetup("Do not reset an active/ended session in place. Return through results.");
+                return;
+            }
+            if (ballMovement != null) ballMovement.StopMotionForCompletion();
             HideFinishGate();
-            if (ballMovement != null)
-                ballMovement.StopMotionForCompletion();
         }
 
         private void HandleRunPrepared()
         {
-            if (!isActiveAndEnabled || trackGenerator == null ||
-                !trackGenerator.IsRunInitialized)
+            if (!started || !isActiveAndEnabled || trackGenerator == null ||
+                !trackGenerator.IsRunInitialized || State == SessionFlowState.SetupError)
                 return;
-
-            planHandled = true;
-            runReady = false;
-            IsCompleted = false;
-            HideFinishGate();
-
-            if (ballMovement == null)
+            if (initialRunStarted)
             {
-                FailSetup("Assign BallMovement.");
+                FailSetup("A new session must not reuse this controller's ended run.");
                 return;
             }
-
+            if (taskTracker != null && taskTracker.HasRegistrationErrors)
+            {
+                FailSetup("A scored challenge could not be registered; review its geometry and Console.");
+                return;
+            }
+            if (sessionUI == null || !sessionUI.IsConfigured || ballMovement == null ||
+                hazardContact == null || !hazardContact.IsConfiguredFor(this, ballMovement) ||
+                taskTracker == null || !taskTracker.IsConfiguredFor(this, ballMovement) ||
+                gameplayCameraFollow == null)
+            {
+                FailSetup("Complete Stage 7C Inspector assignments before playing.");
+                return;
+            }
             if (trackGenerator.HasFiniteRoute && !PrepareFinishGate())
             {
-                FailSetup("Finite run has no correctly configured finish gate.");
+                FailSetup("Finite run needs the existing correctly configured finish gate.");
                 return;
             }
-
-            // Release the temporary stop used while rebuilding the route.
-            // RestartRun already placed the player at spawn beforehand.
-            // Do not teleport again using a potentially stale physics pose.
-            // This also preserves current-position resumption on re-enable.
-            ballMovement.ResumeMotion();
+            initialRunStarted = true;
+            sessionId = Guid.NewGuid().ToString("N");
+            activeSeconds = 0d;
+            EndInfo = null;
+            taskTracker.BeginSession(sessionId);
+            sessionUI.BindRun(this, taskTracker);
+            ballMovement.ResumeMotion(); // Initial setup ONLY, not Pause/Resume.
+            ballMovement.DiscardBufferedInput();
+            discardInputThroughFrame = Time.frameCount;
+            sessionUI.HidePanels();
+            activeIntervalStart = Time.timeAsDouble;
+            State = SessionFlowState.Running;
             trackGenerator.SetGenerationPaused(false);
-            runReady = true;
         }
 
         private bool PrepareFinishGate()
         {
-            if (finishGatePrefab == null)
-                return false;
-
+            if (finishGatePrefab == null) return false;
             if (finishGateInstance == null)
             {
                 finishGateInstance = Instantiate(finishGatePrefab);
                 finishGateInstance.name = "FinishGate_Runtime";
                 finishGateInstance.SetActive(false);
-
-                FinishGateTrigger[] triggers =
-                    finishGateInstance.GetComponentsInChildren
-                        <FinishGateTrigger>(true);
-                if (triggers.Length != 1)
-                    return false;
-
+                FinishGateTrigger[] triggers = finishGateInstance.GetComponentsInChildren<FinishGateTrigger>(true);
+                if (triggers.Length != 1) return false;
                 finishGateTrigger = triggers[0];
             }
-
-            if (finishGateTrigger == null)
-                return false;
-
+            if (finishGateTrigger == null) return false;
             finishGateInstance.transform.SetPositionAndRotation(
-                new Vector3(0f, 0f, trackGenerator.FinishLineZ),
-                Quaternion.identity);
+                new Vector3(0f, 0f, trackGenerator.FinishLineZ), Quaternion.identity);
             finishGateInstance.transform.localScale = Vector3.one;
             finishGateInstance.SetActive(true);
-
             return finishGateTrigger.Arm(ballMovement, CompleteRun);
-        }
-
-        private void CompleteRun()
-        {
-            if (!runReady || IsCompleted ||
-                trackGenerator == null || !trackGenerator.HasFiniteRoute)
-                return;
-
-            // Commit the completed state before invoking any listeners.
-            IsCompleted = true;
-            runReady = false;
-            if (finishGateTrigger != null)
-                finishGateTrigger.Disarm();
-            trackGenerator.SetGenerationPaused(true);
-            ballMovement.StopMotionForCompletion();
-
-            Debug.Log(
-                $"Run completed: {trackGenerator.TrackIdentifier}, " +
-                $"seed={trackGenerator.CurrentSeed}.", this);
-            Completed?.Invoke();
         }
 
         private void HideFinishGate()
         {
-            if (finishGateTrigger != null)
-                finishGateTrigger.Disarm();
-            if (finishGateInstance != null)
-                finishGateInstance.SetActive(false);
+            if (finishGateTrigger != null) finishGateTrigger.Disarm();
+            if (finishGateInstance != null) finishGateInstance.SetActive(false);
         }
 
         private void FailSetup(string reason)
         {
-            runReady = false;
+            StopFinishPresentation();
+            ballShatter?.Stop();
+            StopRespawnFlash();
+            State = SessionFlowState.SetupError;
             HideFinishGate();
-            if (trackGenerator != null)
-                trackGenerator.SetGenerationPaused(true);
-            if (ballMovement != null)
-                ballMovement.StopMotionForCompletion();
+            if (trackGenerator != null) trackGenerator.SetGenerationPaused(true);
+            if (ballMovement != null) ballMovement.StopMotionForCompletion();
             Debug.LogError($"Gameplay run setup: {reason}", this);
+        }
+
+        public void ReportScoringSetupError(string reason) => FailSetup("Scoring: " + reason);
+
+        // Preserve the old caller signature, but never expose in-game restarting.
+        public void RestartRun()
+        {
+            Debug.LogWarning("In-game restart is disabled. End the session and use the result/menu flow.", this);
         }
 
         private void SubscribeToGenerator()
         {
             UnsubscribeFromGenerator();
             subscribedGenerator = trackGenerator;
-            if (subscribedGenerator == null)
-                return;
-
+            if (subscribedGenerator == null) return;
             subscribedGenerator.RunResetting += HandleRunResetting;
             subscribedGenerator.RunPrepared += HandleRunPrepared;
         }
@@ -220,35 +519,36 @@ namespace EndlessRollball.Track
 
         private void OnDisable()
         {
+            if (finishPhase != FinishPhase.None) State = SessionFlowState.SetupError;
+            StopFinishPresentation();
+            ballShatter?.Stop();
+            StopRespawnFlash();
             UnsubscribeFromGenerator();
-            runReady = false;
-            planHandled = false;
+            if (State == SessionFlowState.Running) CaptureActiveInterval();
+            if (State == SessionFlowState.Running || State == SessionFlowState.Paused || State == SessionFlowState.Recovering)
+                State = SessionFlowState.SetupError; // Re-enable never revives a run.
             HideFinishGate();
-            if (trackGenerator != null)
-                trackGenerator.SetGenerationPaused(true);
-            if (ballMovement != null)
-                ballMovement.StopMotionForCompletion();
+            if (trackGenerator != null) trackGenerator.SetGenerationPaused(true);
+            if (ballMovement != null) ballMovement.StopMotionForCompletion();
+            ReleaseClockAndCamera(); // Do not leak Time.timeScale=0 into another scene.
         }
 
         private void OnDestroy()
         {
-            if (finishGateInstance != null)
-                Destroy(finishGateInstance);
+            finishCelebration?.Dispose();
+            ballShatter?.Dispose();
+            if (finishGateInstance != null) Destroy(finishGateInstance);
         }
 
-        public void ConfigureForScene(
-            BallMovement configuredBallMovement,
-            TrackGenerator configuredTrackGenerator,
-            Vector3 configuredSpawnPosition,
+        public void ConfigureForScene(BallMovement configuredBallMovement,
+            TrackGenerator configuredTrackGenerator, Vector3 configuredSpawnPosition,
             float configuredFallThreshold)
         {
             ballMovement = configuredBallMovement;
             trackGenerator = configuredTrackGenerator;
             spawnPosition = configuredSpawnPosition;
             fallThreshold = configuredFallThreshold;
-
-            if (Application.isPlaying && isActiveAndEnabled)
-                SubscribeToGenerator();
+            if (Application.isPlaying && isActiveAndEnabled) SubscribeToGenerator();
         }
     }
 }

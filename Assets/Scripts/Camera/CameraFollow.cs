@@ -16,6 +16,17 @@ public sealed class CameraFollow : MonoBehaviour
     private Vector3 followVelocity;
     [SerializeField, Min(0f)] private float lookAheadDistance = 5f;
 
+    public void SnapToTarget()
+    {
+        if (target == null) return;
+        followVelocity = Vector3.zero;
+        transform.position = target.position + offset;
+        Vector3 direction = target.position + Vector3.up * lookHeight +
+            Vector3.forward * lookAheadDistance - transform.position;
+        if (direction.sqrMagnitude >= .001f)
+            transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
+    }
+
     private void LateUpdate()
     {
         if (target == null)
