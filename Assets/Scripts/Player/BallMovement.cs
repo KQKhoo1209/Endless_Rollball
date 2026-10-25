@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody), typeof(KeyboardGameplayInput))]
@@ -29,6 +30,16 @@ public sealed class BallMovement : MonoBehaviour
     private float lastJumpTime = float.NegativeInfinity;
     private bool movementStopped;
     private RigidbodyConstraints constraintsBeforeStop;
+    private Collider groundCollider;
+    public bool IsGrounded => isGrounded;
+    public Collider GroundCollider => groundCollider;
+    public event Action<Collider> JumpAccepted;
+    public event Action<Collider> GroundContact;
+    public event Action AirborneObserved;
+    private bool finishRolling;
+    private float finishCoastThroughZ, finishRollSpeed, finishBrakeDuration, finishBrakeElapsed;
+    private Vector3 finishAngularVelocity;
+    internal bool IsFinishRollComplete => !finishRolling;
 
     private void Awake()
     {
@@ -49,6 +60,16 @@ public sealed class BallMovement : MonoBehaviour
         if (movementStopped)
             return;
 
+        if (finishRolling)
+        {
+            UpdateFinishRoll();
+            isGrounded = false;
+            groundCollider = null;
+            return; // No player steering/jump input or normal forward acceleration after completion.
+        }
+
+        // Previous physics step had no upward support; this is evidence, not a jump-physics change.
+        if (!isGrounded) AirborneObserved?.Invoke();
         GameplayCommand command = gameplayInput.ReadCommand();
 
         ApplySteering(command.Steering);
@@ -56,6 +77,7 @@ public sealed class BallMovement : MonoBehaviour
         TryJump(command.JumpPressed);
 
         isGrounded = false;
+        groundCollider = null;
     }
 
     private void ApplySteering(float steering)
@@ -98,6 +120,7 @@ public sealed class BallMovement : MonoBehaviour
             return;
         }
 
+        Collider support = groundCollider;
         Vector3 velocity = ballRigidbody.linearVelocity;
         velocity.y = Mathf.Max(0f, velocity.y);
         ballRigidbody.linearVelocity = velocity;
@@ -105,6 +128,18 @@ public sealed class BallMovement : MonoBehaviour
 
         lastJumpTime = Time.time;
         isGrounded = false;
+        JumpAccepted?.Invoke(support);
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        // Landing evidence only: do not alter the existing jump-grounding timing.
+        for (int index = 0; index < collision.contactCount; index++)
+            if (collision.GetContact(index).normal.y >= minimumGroundNormal)
+            {
+                GroundContact?.Invoke(collision.collider);
+                return;
+            }
     }
 
     private void OnCollisionStay(Collision collision)
@@ -114,6 +149,8 @@ public sealed class BallMovement : MonoBehaviour
             if (collision.GetContact(index).normal.y >= minimumGroundNormal)
             {
                 isGrounded = true;
+                groundCollider = collision.collider;
+                GroundContact?.Invoke(collision.collider);
                 return;
             }
         }
@@ -146,12 +183,14 @@ public sealed class BallMovement : MonoBehaviour
         if (movementStopped)
             ballRigidbody.constraints = constraintsBeforeStop;
 
+        finishRolling = false;
         movementStopped = false;
         ballRigidbody.linearVelocity = Vector3.zero;
         ballRigidbody.angularVelocity = Vector3.zero;
         ballRigidbody.WakeUp();
         isGrounded = false;
         lastJumpTime = float.NegativeInfinity;
+        groundCollider = null;
 
         // KeyboardGameplayInput queues jump presses. Discard a pending
         // command so input pressed on the completed screen is not replayed.
@@ -161,6 +200,7 @@ public sealed class BallMovement : MonoBehaviour
 
     public void StopMotionForCompletion()
     {
+        finishRolling = false;
         if (ballRigidbody == null)
             ballRigidbody = GetComponent<Rigidbody>();
 
@@ -174,6 +214,42 @@ public sealed class BallMovement : MonoBehaviour
         ballRigidbody.constraints = RigidbodyConstraints.FreezeAll;
         ballRigidbody.Sleep();
         isGrounded = false;
+        groundCollider = null;
+    }
+
+    internal void BeginFinishRoll(float gateZ, float brakeSeconds)
+    {
+        if (ballRigidbody == null) ballRigidbody = GetComponent<Rigidbody>();
+        if (movementStopped) return;
+        finishRolling = true;
+        finishCoastThroughZ = gateZ + 2f;
+        finishRollSpeed = Mathf.Max(1f, ballRigidbody.linearVelocity.z);
+        // Limit braking travel to 16 m: even the minimum authored clear runoff has room.
+        finishBrakeDuration = Mathf.Max(.05f, Mathf.Min(Mathf.Max(.1f, brakeSeconds), 32f / finishRollSpeed));
+        finishBrakeElapsed = 0f;
+        finishAngularVelocity = ballRigidbody.angularVelocity;
+        DiscardBufferedInput();
+    }
+
+    private void UpdateFinishRoll()
+    {
+        // Keep the incoming forward motion until the entire sphere has crossed the gate.
+        if (ballRigidbody.position.z >= finishCoastThroughZ)
+            finishBrakeElapsed += Time.fixedDeltaTime;
+        float t = Mathf.Clamp01(finishBrakeElapsed / finishBrakeDuration);
+        float remaining = 1f - Mathf.SmoothStep(0f, 1f, t);
+        Vector3 velocity = ballRigidbody.linearVelocity;
+        velocity.z = finishRollSpeed * remaining;
+        velocity.x = Mathf.MoveTowards(velocity.x, 0f, 8f * Time.fixedDeltaTime);
+        ballRigidbody.linearVelocity = velocity; // Retain vertical physics/contact with the real support floor.
+        ballRigidbody.angularVelocity = finishAngularVelocity * remaining;
+        if (t >= 1f) StopMotionForCompletion(); // Freeze only once translation and rotation have eased to zero.
+    }
+
+    public void DiscardBufferedInput()
+    {
+        if (gameplayInput != null)
+            gameplayInput.ReadCommand();
     }
 
     private IGameplayInput ResolveInputProvider()

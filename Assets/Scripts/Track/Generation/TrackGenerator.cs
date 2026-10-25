@@ -13,6 +13,7 @@ namespace EndlessRollball.Track
         [SerializeField] private Transform poolRoot;
         [SerializeField] private EnvironmentManager environmentManager;
         [SerializeField] private ObstacleManager obstacleManager;
+        [SerializeField] private SessionTaskTracker taskTracker;
         [SerializeField] private float startZ = -12f;
         [SerializeField, Min(TrackSegment.ContractLength)] private float aheadDistance = 144f;
         [SerializeField, Min(0f)] private float recycleBehindDistance = 24f;
@@ -34,6 +35,7 @@ namespace EndlessRollball.Track
         public int ActiveSegmentCount => activeSegments.Count;
         public IReadOnlyList<string> GeneratedSequence => generatedSequence;
         public int CurrentSeed => currentRun.Seed;
+        public DifficultyMode CurrentDifficulty => currentRun.Mode;
         public string TrackIdentifier => effectiveTrackIdentifier ?? currentRun.TrackIdentifier;
         private string effectiveTrackIdentifier;
 
@@ -108,6 +110,7 @@ namespace EndlessRollball.Track
 
             if (obstacleManager != null)
                 obstacleManager.EndRun();
+            taskTracker?.ResetRoute();
 
             random = new System.Random(currentRun.Seed);
             selectionState = TrackSelectionState.Initial;
@@ -210,6 +213,8 @@ namespace EndlessRollball.Track
                 }
                 effectiveTrackIdentifier += "-obstacles-fixed-moving-row-gap-v6";
             }
+            if (taskTracker != null)
+                effectiveTrackIdentifier += "-scored-tasks-v2-finite-recovery";
 
             EnsureTrackAhead();
             RunPrepared?.Invoke();
@@ -343,6 +348,7 @@ namespace EndlessRollball.Track
             instance.Activate(snapshot);
 
             environmentManager?.Attach(instance, spawnedCount);
+            taskTracker?.RegisterTrack(instance);
 
             if (obstacleManager != null)
             {
@@ -405,6 +411,7 @@ namespace EndlessRollball.Track
 
         private void Return(ActiveSegment active)
         {
+            taskTracker?.ReleaseTrack(active.Instance);
             if (obstacleManager != null)
                 obstacleManager.Release(active.Instance);
 

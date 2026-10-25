@@ -20,6 +20,18 @@ namespace EndlessRollball.Track
         private Vector3[] route;
         private float routeLength;
 
+        internal Bounds AuthoredTravelBounds
+        {
+            get
+            {
+                Vector3[] points = localWaypointOffsets != null && localWaypointOffsets.Length >= 2
+                    ? localWaypointOffsets : new[] { Vector3.left * halfTravel, Vector3.right * halfTravel };
+                var bounds = new Bounds(localHomePosition + points[0], Vector3.zero);
+                for (int i = 1; i < points.Length; i++) bounds.Encapsulate(localHomePosition + points[i]);
+                return bounds;
+            }
+        }
+
         public void Prepare(float configuredSpeed, float configuredPhase)
         {
             if (body == null)

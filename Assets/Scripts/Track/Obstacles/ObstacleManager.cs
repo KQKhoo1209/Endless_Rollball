@@ -10,6 +10,7 @@ namespace EndlessRollball.Track
         [Header("Scene references")]
         [SerializeField] private Transform activeRoot;
         [SerializeField] private Transform poolRoot;
+        [SerializeField] private SessionTaskTracker taskTracker;
 
         [Header("Neutral fixed obstacles")]
         [SerializeField]
@@ -74,7 +75,8 @@ namespace EndlessRollball.Track
         internal readonly struct EncounterPlan
         {
             internal EncounterPlan(ObstacleManager owner, int version, int index,
-                TrackSegment track, GameObject payload, float offsetX, float phase, float movingSpeed, bool isGap)
+                TrackSegment track, GameObject payload, float offsetX, float phase, float movingSpeed, bool isGap,
+                bool isJumpRow = false)
             {
                 Owner = owner;
                 Version = version;
@@ -85,6 +87,7 @@ namespace EndlessRollball.Track
                 Phase = phase;
                 MovingSpeed = movingSpeed;
                 IsGap = isGap;
+                IsJumpRow = isJumpRow;
             }
 
             internal ObstacleManager Owner { get; }
@@ -96,6 +99,7 @@ namespace EndlessRollball.Track
             internal float Phase { get; }
             internal float MovingSpeed { get; }
             internal bool IsGap { get; }
+            internal bool IsJumpRow { get; }
             internal bool HasEncounter => IsGap || Payload != null;
         }
 
@@ -204,7 +208,7 @@ namespace EndlessRollball.Track
                     FootprintLimitX - footprint.max.x);
             }
             float phase = moving ? (random.Next(2) == 0 ? 0.25f : 0.75f) : 0f;
-            return new EncounterPlan(this, runVersion, segmentIndex, clearRoad, prefab, offsetX, phase, movingSpeed, false);
+            return new EncounterPlan(this, runVersion, segmentIndex, clearRoad, prefab, offsetX, phase, movingSpeed, false, jumping);
         }
 
         internal void AttachPlanned(TrackSegment segment, EncounterPlan plan)
@@ -220,6 +224,7 @@ namespace EndlessRollball.Track
                 if (segment.Kind != TrackSegmentKind.Gap || !segment.RequiredJump)
                     return;
                 activeGaps.Add(segment);
+                taskTracker?.RegisterGap(segment, plan.Index);
                 lastPlacedIndex = plan.Index;
                 return; // Collision and pooling belong to this complete track, not a payload.
             }
@@ -255,6 +260,7 @@ namespace EndlessRollball.Track
             instance.SetActive(true);
             if (pair.Motion != null)
                 pair.Motion.SetRunning(!motionPaused);
+            taskTracker?.RegisterPayload(segment, plan.Index, instance, plan.IsJumpRow, pair.Motion);
             lastPlacedIndex = plan.Index;
         }
 
@@ -410,6 +416,24 @@ namespace EndlessRollball.Track
                 if (hasBounds) combined.Encapsulate(point);
                 else { combined = new Bounds(point, Vector3.zero); hasBounds = true; }
             }
+        }
+
+        public bool OwnsActiveCollider(Collider shape)
+        {
+            if (shape == null || !shape.enabled || shape.isTrigger ||
+                !shape.gameObject.activeInHierarchy)
+                return false;
+
+            foreach (ObstaclePair pair in active.Values)
+            {
+                if (pair.Instance == null || !pair.Instance.activeInHierarchy)
+                    continue;
+
+                Transform root = pair.Instance.transform;
+                if (shape.transform == root || shape.transform.IsChildOf(root))
+                    return true;
+            }
+            return false;
         }
 
         private bool ValidateList(List<GameObject> prefabs, bool moving)
