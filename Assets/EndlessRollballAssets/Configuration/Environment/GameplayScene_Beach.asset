@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25013fd5aa6b0144f98eaf26cc9c96b9, type: 3}
+  m_Name: GameplayScene_Beach
+  m_EditorClassIdentifier: 
+  theme: 1
+  sceneryPrefabs:
+  - {fileID: 7357216823944160225, guid: 1e3708472cf34c548a54e05385493c44, type: 3}
+  - {fileID: 8400783041537199101, guid: b4ced2dec672edc4eadae8cd5792a690, type: 3}
+  - {fileID: 8857682523976843198, guid: ee6c6464ee3f1314fb604f3754fa8d70, type: 3}
+  - {fileID: 8818223040942019193, guid: 58201bd05481c0d4da3dbc102ce90d4d, type: 3}
+  - {fileID: 3976582008921549841, guid: a4a6d36fe52f0f4459e3f8a29855826d, type: 3}
+  skyboxMaterial: {fileID: 2100000, guid: e077fc01fea8beddccea4f756edc7d47, type: 2}
+  ambientLight: {r: 0.6, g: 0.6, b: 0.6, a: 1}
+  directionalLightIntensity: 1
+  roadTrackPrefab: {fileID: 4688247653282594077, guid: f6a8b0d76d1b2cc4dba2c7d66c6c9eb2, type: 3}
+  gapTrackPrefab: {fileID: 3911007261913062820, guid: 52d905933901442e8dbf609d21623896, type: 3}
+  normalGapTrackPrefab: {fileID: 3911007261913062820, guid: a95055449abc4fd483ebab56d108e230, type: 3}
+  hardGapTrackPrefab: {fileID: 3911007261913062820, guid: 3d20ac2125af422cbf2728d55bc2bc4f, type: 3}

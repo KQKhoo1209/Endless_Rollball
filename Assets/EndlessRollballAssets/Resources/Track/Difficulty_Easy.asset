@@ -15,12 +15,16 @@ MonoBehaviour:
   mode: 0
   standardized: 1
   fixedSeed: 24001
-  trackIdentifier: easy-v2-24001
+  trackIdentifier: easy-v4-24001
   forwardSpeed: 6
   speedAdjustmentRange: 3
-  obstacleProbability: 0.35
+  obstacleProbability: 0.55
   movingObstacleSpeed: 0.8
   maximumForwardSpeed: 6
-  maximumObstacleProbability: 0.35
+  maximumObstacleProbability: 0.55
   maximumMovingObstacleSpeed: 0.8
   distanceToMaximum: 1000
+  recoverySeconds: 2
+  consecutiveLimit: 2
+  combinationChance: 0
+  combinationUnlockDistance: 750

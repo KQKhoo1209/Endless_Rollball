@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25013fd5aa6b0144f98eaf26cc9c96b9, type: 3}
+  m_Name: GameplayScene_Street
+  m_EditorClassIdentifier: 
+  theme: 0
+  sceneryPrefabs:
+  - {fileID: 5527827358754628636, guid: 15d652edc1522fe49a5c9a56ccb7cf64, type: 3}
+  - {fileID: 8769663865173551705, guid: bbb04410ea9a4e04ab2cd84564bceb90, type: 3}
+  - {fileID: 2830164990560980016, guid: 6e41357c0d5e12a42aaace0919102354, type: 3}
+  - {fileID: 771051975059127202, guid: d0b546f9c0ac9554aa0ffce8b0c8cd8b, type: 3}
+  - {fileID: 5797766649124326075, guid: 3e33fa36e0efbee4aa7c957d1f060633, type: 3}
+  skyboxMaterial: {fileID: 2100000, guid: 99814a37db5141647a8306292fe651f7, type: 2}
+  ambientLight: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  directionalLightIntensity: 1
+  roadTrackPrefab: {fileID: 3187764758895009713, guid: 0de2e1db2fb5e1e4d972ba16ce1d43f4, type: 3}
+  gapTrackPrefab: {fileID: 7124646668281092053, guid: f506e716c6a943e8bc24c4f343482882, type: 3}
+  normalGapTrackPrefab: {fileID: 7124646668281092053, guid: c0f22a5746fb45c6992a5e4acb0240cb, type: 3}
+  hardGapTrackPrefab: {fileID: 7124646668281092053, guid: ddc0998ad7f949dca375e0cd491790d0, type: 3}
