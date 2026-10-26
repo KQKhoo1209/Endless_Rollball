@@ -44,11 +44,7 @@ namespace EndlessRollball.Track
 
     public readonly struct TrackRunConfig
     {
-        public TrackRunConfig(
-            DifficultyMode mode,
-            int seed,
-            bool standardized,
-            string trackIdentifier)
+        public TrackRunConfig(DifficultyMode mode, int seed, bool standardized, string trackIdentifier)
         {
             Mode = mode;
             Seed = seed;
@@ -65,13 +61,7 @@ namespace EndlessRollball.Track
 
     public readonly struct DifficultySnapshot
     {
-        public DifficultySnapshot(
-            DifficultyMode mode,
-            float forwardSpeed,
-            float speedAdjustmentRange,
-            float obstacleProbability,
-            float movingObstacleSpeed,
-            float progress01)
+        public DifficultySnapshot(DifficultyMode mode, float forwardSpeed, float speedAdjustmentRange, float obstacleProbability, float movingObstacleSpeed, float progress01, float roadWidth = 9f, float recoverySeconds = 2f, int consecutiveLimit = 2, float combinationChance = 0f)
         {
             Mode = mode;
             ForwardSpeed = Mathf.Max(0f, forwardSpeed);
@@ -79,6 +69,10 @@ namespace EndlessRollball.Track
             ObstacleProbability = Mathf.Clamp01(obstacleProbability);
             MovingObstacleSpeed = Mathf.Max(0f, movingObstacleSpeed);
             Progress01 = Mathf.Clamp01(progress01);
+            RoadWidth = Mathf.Max(1f, roadWidth);
+            RecoverySeconds = Mathf.Max(.7f, recoverySeconds);
+            ConsecutiveLimit = Mathf.Max(1, consecutiveLimit);
+            CombinationChance = Mathf.Clamp01(combinationChance);
         }
 
         public DifficultyMode Mode { get; }
@@ -87,6 +81,11 @@ namespace EndlessRollball.Track
         public float ObstacleProbability { get; }
         public float MovingObstacleSpeed { get; }
         public float Progress01 { get; }
+        public float RoadWidth { get; }
+        public float RecoverySeconds { get; }
+        public int ConsecutiveLimit { get; }
+        public float CombinationChance { get; }
+        public RoadCorridor Corridor => new RoadCorridor(RoadWidth);
     }
 
     public static class TrackLaneMaskUtility
@@ -94,7 +93,6 @@ namespace EndlessRollball.Track
         public static TrackLaneMask ExpandAdjacent(TrackLaneMask lanes)
         {
             TrackLaneMask expanded = lanes;
-
             if ((lanes & TrackLaneMask.Left) != 0)
             {
                 expanded |= TrackLaneMask.Centre;
@@ -126,7 +124,6 @@ namespace EndlessRollball.Track
                 DifficultyMode.Endless => DifficultyModeMask.Endless,
                 _ => DifficultyModeMask.None
             };
-
             return (mask & required) != 0;
         }
     }

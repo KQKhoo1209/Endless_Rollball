@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using EndlessRollball.Track;
 using UnityEngine;
+using EndlessRollball.Infrastructure;
 
 namespace EndlessRollball.Scenery
 {
@@ -22,68 +23,52 @@ namespace EndlessRollball.Scenery
             public GameObject Last;
         }
 
-        private readonly Dictionary<TrackSegment, SceneryPair> activeScenery =
-            new Dictionary<TrackSegment, SceneryPair>();
-        private readonly Dictionary<GameObject, Queue<GameObject>> sceneryPools =
-            new Dictionary<GameObject, Queue<GameObject>>();
-        private readonly Dictionary<ThemeSettings, VariantBag> variantBags =
-            new Dictionary<ThemeSettings, VariantBag>();
+        private readonly Dictionary<TrackSegment, SceneryPair> activeScenery = new Dictionary<TrackSegment, SceneryPair>();
+        [SerializeField, Min(0)]
+        private int maxInactiveSceneryPerPrefab = 2;
+        private readonly PrefabPool sceneryPool = new PrefabPool();
+        [Header("Scenery pool diagnostics (runtime)")]
+        [SerializeField]
+        private List<PrefabPool.Counters> sceneryPoolStatistics = new List<PrefabPool.Counters>();
+        public IReadOnlyList<PrefabPool.Counters> SceneryPoolStatistics => sceneryPool.Statistics;
 
+        private readonly Dictionary<EnvironmentThemeConfig, VariantBag> variantBags = new Dictionary<EnvironmentThemeConfig, VariantBag>();
         private System.Random sceneryRandom;
-        private ThemeSettings currentSettings;
+        private EnvironmentThemeConfig currentSettings;
         private bool sceneryReady;
-
-        public void BeginRun(
-            GameMode mode, DifficultyMode difficulty, int trackSeed)
+        public void BeginRun(GameMode mode, DifficultyMode difficulty, int trackSeed)
         {
             // Compatibility with the original generator origin.
             BeginRun(mode, difficulty, trackSeed, -12f);
         }
 
-        public void BeginRun(
-            GameMode mode, DifficultyMode difficulty,
-            int trackSeed, float trackOriginZ)
+        public void BeginRun(GameMode mode, DifficultyMode difficulty, int trackSeed, float trackOriginZ)
         {
             EndRun();
             if (!isActiveAndEnabled)
                 return;
-
             CurrentTheme = SelectStartingTheme(mode, difficulty, trackSeed);
             currentSettings = GetSettings(CurrentTheme);
-
-            if (activeSceneryRoot == null || sceneryPoolRoot == null ||
-                activeSceneryRoot == sceneryPoolRoot ||
-                activeSceneryRoot.IsChildOf(sceneryPoolRoot) ||
-                sceneryPoolRoot.IsChildOf(activeSceneryRoot))
+            if (activeSceneryRoot == null || sceneryPoolRoot == null || activeSceneryRoot == sceneryPoolRoot || activeSceneryRoot.IsChildOf(sceneryPoolRoot) || sceneryPoolRoot.IsChildOf(activeSceneryRoot))
             {
-                Debug.LogWarning(
-                    "Assign separate, non-nested active and pool roots.", this);
+                Debug.LogWarning("Assign separate, non-nested active and pool roots.", this);
                 return;
             }
 
-            if (!activeSceneryRoot.gameObject.activeInHierarchy ||
-                !HasValidTheme(CurrentTheme))
+            if (!activeSceneryRoot.gameObject.activeInHierarchy || !HasValidTheme(CurrentTheme))
             {
-                Debug.LogWarning(
-                    "The active root must be active; the starting theme " +
-                    "needs a valid prefab list and outdoor skybox.", this);
+                Debug.LogWarning("The active root must be active; the starting theme " + "needs a valid prefab list and outdoor skybox.", this);
                 return;
             }
 
             if (!ConfigureJourney(mode, difficulty, trackSeed, trackOriginZ))
                 return;
-
             sceneryPoolRoot.gameObject.SetActive(false);
-            sceneryRandom = new System.Random(
-                unchecked(trackSeed ^ 0x13579BDF));
-
+            sceneryRandom = new System.Random(unchecked(trackSeed ^ 0x13579BDF));
             CapturePresentation();
             ApplyPresentation();
             sceneryReady = true;
-
-            Debug.Log(
-                $"Environment run: {CurrentTheme} | {mode}/{difficulty} | " +
-                $"Seed {trackSeed} | {JourneyIdentifier}", this);
+            Debug.Log($"Environment run: {CurrentTheme} | {mode}/{difficulty} | " + $"Seed {trackSeed} | {JourneyIdentifier}", this);
         }
 
         public void Attach(TrackSegment segment)
@@ -93,30 +78,21 @@ namespace EndlessRollball.Scenery
 
         public void Attach(TrackSegment segment, int segmentIndex)
         {
-            if (!isActiveAndEnabled || !sceneryReady || segment == null ||
-                activeScenery.ContainsKey(segment))
+            if (!isActiveAndEnabled || !sceneryReady || segment == null || activeScenery.ContainsKey(segment))
                 return;
-
             if (HasScheduledJourney && segmentIndex < 0)
             {
-                Debug.LogWarning(
-                    "Scheduled scenery requires the forward spawn index. " +
-                    "Use Attach(segment, segmentIndex).", this);
+                Debug.LogWarning("Scheduled scenery requires the forward spawn index. " + "Use Attach(segment, segmentIndex).", this);
                 return;
             }
 
-            ScenerySlot slot = GetScenerySlot(segmentIndex);
-            GameObject prefab = slot.IsTunnel
-                ? transitionTunnelSceneryPrefab
-                : NextVariant(GetSettings(slot.Theme));
+            EnvironmentJourneyPlanner.ScenerySlot slot = GetScenerySlot(segmentIndex);
+            GameObject prefab = slot.IsTunnel ? transitionTunnelSceneryPrefab : NextVariant(GetSettings(slot.Theme));
             bool hidden = slot.ZoneId > visibleZone;
-
             GameObject instance = AcquireScenery(prefab);
             instance.transform.SetParent(activeSceneryRoot, false);
-            instance.transform.SetPositionAndRotation(
-                segment.transform.position, segment.transform.rotation);
+            instance.transform.SetPositionAndRotation(segment.transform.position, segment.transform.rotation);
             instance.transform.localScale = Vector3.one;
-
             var pair = new SceneryPair
             {
                 Prefab = prefab,
@@ -126,20 +102,16 @@ namespace EndlessRollball.Scenery
                 Track = segment
             };
             activeScenery.Add(segment, pair);
-
             if (slot.IsTunnel)
                 RegisterJourneyTunnel(segment, segmentIndex, slot.ZoneId);
-
             instance.SetActive(!hidden);
             segment.SetPresentationVisible(!hidden);
         }
 
         public void Release(TrackSegment segment)
         {
-            if (segment == null ||
-                !activeScenery.TryGetValue(segment, out SceneryPair pair))
+            if (segment == null || !activeScenery.TryGetValue(segment, out SceneryPair pair))
                 return;
-
             activeScenery.Remove(segment);
             ReturnScenery(pair);
         }
@@ -150,7 +122,6 @@ namespace EndlessRollball.Scenery
             ResetJourneyPresentation();
             foreach (SceneryPair pair in activeScenery.Values)
                 ReturnScenery(pair);
-
             activeScenery.Clear();
             variantBags.Clear();
             sceneryRandom = null;
@@ -161,42 +132,24 @@ namespace EndlessRollball.Scenery
 
         private GameObject AcquireScenery(GameObject prefab)
         {
-            if (sceneryPools.TryGetValue(
-                prefab, out Queue<GameObject> pool))
+            GameObject scenery = sceneryPool.Acquire(prefab, sceneryPoolRoot);
+            if (sceneryPoolStatistics.Count != sceneryPool.Statistics.Count)
             {
-                while (pool.Count > 0)
-                {
-                    GameObject instance = pool.Dequeue();
-                    if (instance != null)
-                        return instance;
-                }
+                sceneryPoolStatistics.Clear();
+                sceneryPoolStatistics.AddRange(sceneryPool.Statistics);
             }
 
-            GameObject created = Instantiate(prefab, sceneryPoolRoot, false);
-            created.name = $"{prefab.name}_Pooled";
-            created.SetActive(false);
-            return created;
+            return scenery;
         }
 
         private void ReturnScenery(SceneryPair pair)
         {
             if (pair.Track != null)
                 pair.Track.SetPresentationVisible(true);
-            if (pair.Instance == null)
-                return;
-
-            pair.Instance.SetActive(false);
-            pair.Instance.transform.SetParent(sceneryPoolRoot, false);
-            if (!sceneryPools.TryGetValue(
-                pair.Prefab, out Queue<GameObject> pool))
-            {
-                pool = new Queue<GameObject>();
-                sceneryPools.Add(pair.Prefab, pool);
-            }
-            pool.Enqueue(pair.Instance);
+            sceneryPool.Return(pair.Prefab, pair.Instance, sceneryPoolRoot, maxInactiveSceneryPerPrefab);
         }
 
-        private GameObject NextVariant(ThemeSettings settings)
+        private GameObject NextVariant(EnvironmentThemeConfig settings)
         {
             if (!variantBags.TryGetValue(settings, out VariantBag bag))
             {
@@ -222,6 +175,7 @@ namespace EndlessRollball.Scenery
                     bag.Items[0] = bag.Items[1];
                     bag.Items[1] = temporary;
                 }
+
                 bag.Index = 0;
             }
 
@@ -236,7 +190,6 @@ namespace EndlessRollball.Scenery
             {
                 if (!pair.HiddenForTransition || pair.ZoneId > visibleZone)
                     continue;
-
                 pair.HiddenForTransition = false;
                 if (pair.Instance != null)
                     pair.Instance.SetActive(true);
