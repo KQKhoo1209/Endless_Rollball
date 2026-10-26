@@ -15,12 +15,16 @@ MonoBehaviour:
   mode: 2
   standardized: 0
   fixedSeed: 0
-  trackIdentifier: hard-v1
+  trackIdentifier: hard-v3
   forwardSpeed: 9
   speedAdjustmentRange: 4
-  obstacleProbability: 0.8
+  obstacleProbability: 1
   movingObstacleSpeed: 2.5
   maximumForwardSpeed: 9
-  maximumObstacleProbability: 0.8
+  maximumObstacleProbability: 1
   maximumMovingObstacleSpeed: 2.5
   distanceToMaximum: 1000
+  recoverySeconds: 0.7
+  consecutiveLimit: 6
+  combinationChance: 1
+  combinationUnlockDistance: 750

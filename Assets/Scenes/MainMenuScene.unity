@@ -280,7 +280,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 1721049486}
         m_TargetAssemblyTypeName: GameSetupUI, EndlessRollball.Runtime
-        m_MethodName: ContinueFromMode
+        m_MethodName: StartGame
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -7986,6 +7986,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: EndlessRollball.Runtime::GameSetupUI
   gameModePage: {fileID: 1968368607}
   difficultyPage: {fileID: 1092717051}
+  difficultyContinueButton: {fileID: 14734918}
+  modeContinueButton: {fileID: 382375449}
 --- !u!4 &1721049487
 Transform:
   m_ObjectHideFlags: 0

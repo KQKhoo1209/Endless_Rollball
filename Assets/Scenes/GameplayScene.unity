@@ -566,13 +566,38 @@ MonoBehaviour:
   - {fileID: 3594504724626246446, guid: a3f273e90924dce46ab18c117bec5b38, type: 3}
   - {fileID: 8592280826870933214, guid: 5e1dc16c8ef32264ab757988247e53b0, type: 3}
   - {fileID: 6067087425205181381, guid: 800c5f103acd271409ef34fee45f3f57, type: 3}
-  - {fileID: 1960735377629455303, guid: f40a3e7200475854ab7d83b21c40937b, type: 3}
   - {fileID: 7001864171602191173, guid: f603d1b43e11d9b469b6d7178c3fa315, type: 3}
   - {fileID: 1305528837668671700, guid: 0a053e88cec660d4f9fa1ccdea9f52f3, type: 3}
   jumpFraction: 0.25
   gapShareWithinJump: 0.5
-  encounterProbabilityMultiplier: 1.5
+  combinationPatterns:
+  - {fileID: 11400000, guid: f884816938b84b4a932414dd15dc7200, type: 2}
+  - {fileID: 11400000, guid: 43527c11026542438476bbb52dd8553a, type: 2}
+  - {fileID: 11400000, guid: 4e166d656bab43ef90abc38686ee6071, type: 2}
+  - {fileID: 11400000, guid: 9321fa0646764b169678cdbcf7727095, type: 2}
+  - {fileID: 11400000, guid: d78809466d9d43b397d68d126df9ee5c, type: 2}
+  - {fileID: 11400000, guid: 329ec38e14c54791af014d3285edf461, type: 2}
+  - {fileID: 11400000, guid: ba62340fda064958afeb1eefa046a205, type: 2}
+  - {fileID: 11400000, guid: 5aa71d791fed4ea4843982ece5b40d26, type: 2}
+  - {fileID: 11400000, guid: ab6e93b2233d4368bdd3175f5f5305da, type: 2}
+  - {fileID: 11400000, guid: c552876459b945ddb14b1caa23a2c4fb, type: 2}
+  - {fileID: 11400000, guid: 80755c5a4a79433d943f38db55c71550, type: 2}
+  - {fileID: 11400000, guid: 10edff77cce142479a61a7f4152fe460, type: 2}
+  - {fileID: 11400000, guid: 541cff801b8b4ed4b8c51b9154bf715f, type: 2}
+  - {fileID: 11400000, guid: 27c66b28ed0e443dabed71e852e413df, type: 2}
+  - {fileID: 11400000, guid: 399f2c643baa4ca0ba1fdab52acc07f9, type: 2}
+  - {fileID: 11400000, guid: db42b85bb69a416b858601b7dc7a4837, type: 2}
+  - {fileID: 11400000, guid: 07d49a282eab469eb4ca9cbd9f53271e, type: 2}
+  - {fileID: 11400000, guid: 62594b6554c2415b8f8c7090851dc76f, type: 2}
+  - {fileID: 11400000, guid: 51b1bd8816f14c649526a674acd7eafe, type: 2}
+  - {fileID: 11400000, guid: 0d8c2577b31f4bef8ae4098173e7ea24, type: 2}
+  - {fileID: 11400000, guid: 5854b9eff25e462ca89d9df3d334be03, type: 2}
+  - {fileID: 11400000, guid: e92f3fde6dbb4b498324d601781bd489, type: 2}
+  - {fileID: 11400000, guid: 326fae7daf7d43938d583cd36cee7f7e, type: 2}
+  - {fileID: 11400000, guid: 98d0b676a896431993633d2bbe75f481, type: 2}
+  ballMovement: {fileID: 2114248219}
   maxInactivePerPrefab: 2
+  poolStatistics: []
 --- !u!1 &218970262
 GameObject:
   m_ObjectHideFlags: 0
@@ -1314,6 +1339,10 @@ MonoBehaviour:
   respawnDelaySeconds: 1
   respawnFlashSeconds: 3
   respawnBlinkInterval: 0.25
+  finishFireworksSeconds: 5
+  finishFadeOutSeconds: 0.6
+  finishFadeInSeconds: 0.6
+  finishSlowdownSeconds: 2
 --- !u!114 &467182654
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1328,7 +1357,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.TrackGenerator
   standardTargetDurationSeconds: 360
   fastPacedTargetDurationSeconds: 180
-  finishApproachSegments: 3
+  finishClearance: 6
   finishRunoffSegments: 2
   minimumFinalThemeSegments: 6
   player: {fileID: 2114248218}
@@ -1338,6 +1367,7 @@ MonoBehaviour:
   environmentManager: {fileID: 1655649669}
   obstacleManager: {fileID: 163069482}
   taskTracker: {fileID: 467182657}
+  corridorMarkerMaterial: {fileID: 2100000, guid: 21779e89c65c64f4bb18779296d35853, type: 2}
   startZ: -12
   aheadDistance: 144
   recycleBehindDistance: 24
@@ -4797,6 +4827,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4823a2e8826d42c4fbf1f90fb553f976, type: 3}
   m_Name: 
   m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Scenery.EnvironmentManager
+  maxInactiveSceneryPerPrefab: 2
+  sceneryPoolStatistics: []
   useReviewThemeOverride: 0
   reviewTheme: 0
   journeyFadeGroup: {fileID: 1825610139}
@@ -4805,55 +4837,19 @@ MonoBehaviour:
   journeyFadeOutDuration: 0.35
   journeyCoveredHold: 0.15
   journeyFadeInDuration: 0.5
+  activeSceneryRoot: {fileID: 1708255652}
+  sceneryPoolRoot: {fileID: 549346406}
+  gameplayCamera: {fileID: 735950305}
+  directionalLight: {fileID: 1773891219}
+  street: {fileID: 11400000, guid: 9c70b03fc5f143f5aa0e5c61aeeec54d, type: 2}
+  beach: {fileID: 11400000, guid: 035579703bcf4d1ea9d01ba7cc582308, type: 2}
+  dungeon: {fileID: 11400000, guid: 8244bfcea3b845169b498992efb35f58, type: 2}
+  dungeonBackgroundColor: {r: 0.025, g: 0.025, b: 0.035, a: 1}
   transitionTunnelSceneryPrefab: {fileID: 8779759523186124058, guid: 0992efbee490e2c4ca440b48f744330f, type: 3}
   standardEasyStreetSegments: 30
   standardThreeThemeSegmentsPerZone: 30
   endlessSegmentsPerZone: 30
   endlessDungeonUnlockDistance: 500
-  activeSceneryRoot: {fileID: 1708255652}
-  sceneryPoolRoot: {fileID: 549346406}
-  gameplayCamera: {fileID: 735950305}
-  directionalLight: {fileID: 1773891219}
-  street:
-    sceneryPrefabs:
-    - {fileID: 5527827358754628636, guid: 15d652edc1522fe49a5c9a56ccb7cf64, type: 3}
-    - {fileID: 8769663865173551705, guid: bbb04410ea9a4e04ab2cd84564bceb90, type: 3}
-    - {fileID: 2830164990560980016, guid: 6e41357c0d5e12a42aaace0919102354, type: 3}
-    - {fileID: 771051975059127202, guid: d0b546f9c0ac9554aa0ffce8b0c8cd8b, type: 3}
-    - {fileID: 5797766649124326075, guid: 3e33fa36e0efbee4aa7c957d1f060633, type: 3}
-    skyboxMaterial: {fileID: 2100000, guid: 99814a37db5141647a8306292fe651f7, type: 2}
-    ambientColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-    directionalLightIntensity: 1
-    roadSurfacePrefab: {fileID: 8127042453225506550, guid: d45e9149966587e44972a37fa064d4c5, type: 3}
-    roadTrackPrefab: {fileID: 3187764758895009713, guid: 0de2e1db2fb5e1e4d972ba16ce1d43f4, type: 3}
-    gapTrackPrefab: {fileID: 7124646668281092053, guid: 1fe77323c00af8e44a9a33d1cec6b8cd, type: 3}
-  beach:
-    sceneryPrefabs:
-    - {fileID: 7357216823944160225, guid: 1e3708472cf34c548a54e05385493c44, type: 3}
-    - {fileID: 8400783041537199101, guid: b4ced2dec672edc4eadae8cd5792a690, type: 3}
-    - {fileID: 8857682523976843198, guid: ee6c6464ee3f1314fb604f3754fa8d70, type: 3}
-    - {fileID: 8818223040942019193, guid: 58201bd05481c0d4da3dbc102ce90d4d, type: 3}
-    - {fileID: 3976582008921549841, guid: a4a6d36fe52f0f4459e3f8a29855826d, type: 3}
-    skyboxMaterial: {fileID: 2100000, guid: e077fc01fea8beddccea4f756edc7d47, type: 2}
-    ambientColor: {r: 0.6, g: 0.6, b: 0.6, a: 1}
-    directionalLightIntensity: 1
-    roadSurfacePrefab: {fileID: 8012557029089290901, guid: 97a963abddc2c8d4286bd97151479ca6, type: 3}
-    roadTrackPrefab: {fileID: 4688247653282594077, guid: f6a8b0d76d1b2cc4dba2c7d66c6c9eb2, type: 3}
-    gapTrackPrefab: {fileID: 3911007261913062820, guid: 9407f81a9b6b058429cc746f60d4ea2b, type: 3}
-  dungeon:
-    sceneryPrefabs:
-    - {fileID: 8009890882721515432, guid: 16075c1027c3ea54aa63a3e861f39377, type: 3}
-    - {fileID: 2390926515210165720, guid: 9a41a111f607ac04391574a67a9723af, type: 3}
-    - {fileID: 4572868572752130997, guid: 1481b670bf8d3114882f1d5e15a375a8, type: 3}
-    - {fileID: 458480009732567902, guid: a29d0754bb8cc6b4e9b07802ccec852c, type: 3}
-    - {fileID: 6898557236644063870, guid: ed38eed949933924599aa9dbaa0d2051, type: 3}
-    skyboxMaterial: {fileID: 0}
-    ambientColor: {r: 0.18039216, g: 0.2, b: 0.2509804, a: 1}
-    directionalLightIntensity: 0
-    roadSurfacePrefab: {fileID: 1958737641642620481, guid: c9748fa7e4c6c6745a769623d10924e9, type: 3}
-    roadTrackPrefab: {fileID: 8683306687898440127, guid: 2d1231b283115a344b492a742866b292, type: 3}
-    gapTrackPrefab: {fileID: 7682446981815038299, guid: 5e5c930c7597e1745906e48724012a63, type: 3}
-  dungeonBackgroundColor: {r: 0.025, g: 0.025, b: 0.035, a: 1}
 --- !u!1 &1691719968
 GameObject:
   m_ObjectHideFlags: 0

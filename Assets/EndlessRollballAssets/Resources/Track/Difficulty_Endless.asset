@@ -15,12 +15,16 @@ MonoBehaviour:
   mode: 3
   standardized: 0
   fixedSeed: 0
-  trackIdentifier: endless-v1
+  trackIdentifier: endless-v3
   forwardSpeed: 7
   speedAdjustmentRange: 3.5
   obstacleProbability: 0.55
   movingObstacleSpeed: 1.5
   maximumForwardSpeed: 10
-  maximumObstacleProbability: 0.85
+  maximumObstacleProbability: 1
   maximumMovingObstacleSpeed: 3
   distanceToMaximum: 1000
+  recoverySeconds: 2
+  consecutiveLimit: 2
+  combinationChance: 1
+  combinationUnlockDistance: 750

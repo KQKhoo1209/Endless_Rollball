@@ -5,25 +5,35 @@ namespace EndlessRollball.Track
     public sealed class TrackSegment : MonoBehaviour
     {
         public const float ContractLength = 24f;
-
-        [SerializeField] private string segmentId = "segment";
-        [SerializeField] private Transform entryAnchor;
-        [SerializeField] private Transform exitAnchor;
-        [SerializeField] private TrackSegmentKind kind;
-        [SerializeField] private DifficultyModeMask allowedModes = DifficultyModeMask.All;
-        [SerializeField] private TrackLaneMask entryLanes = TrackLaneMask.All;
-        [SerializeField] private TrackLaneMask safeLanes = TrackLaneMask.All;
-        [SerializeField] private bool requiredJump;
-
+        [SerializeField]
+        private string segmentId = "segment";
+        [SerializeField]
+        private Transform entryAnchor;
+        [SerializeField]
+        private Transform exitAnchor;
+        [SerializeField]
+        private TrackSegmentKind kind;
+        [SerializeField]
+        private DifficultyModeMask allowedModes = DifficultyModeMask.All;
+        [SerializeField]
+        private TrackLaneMask entryLanes = TrackLaneMask.All;
+        [SerializeField]
+        private TrackLaneMask safeLanes = TrackLaneMask.All;
+        [SerializeField]
+        private bool requiredJump;
         [Tooltip("Optional visual-only child. Zone fades hide this child without disabling floor collision.")]
-        [SerializeField] private GameObject presentationRoot;
-
+        [SerializeField]
+        private GameObject presentationRoot;
         [Header("Selection weights")]
-        [SerializeField, Min(0f)] private float easyWeight = 1f;
-        [SerializeField, Min(0f)] private float normalWeight = 1f;
-        [SerializeField, Min(0f)] private float hardWeight = 1f;
-        [SerializeField, Min(0f)] private float endlessWeight = 1f;
-
+        [SerializeField, Min(0f)]
+        private float easyWeight = 1f;
+        [SerializeField, Min(0f)]
+        private float normalWeight = 1f;
+        [SerializeField, Min(0f)]
+        private float hardWeight = 1f;
+        [SerializeField, Min(0f)]
+        private float endlessWeight = 1f;
+        public Transform VisualRoot => presentationRoot != null ? presentationRoot.transform : transform;
         public string SegmentId => segmentId;
         public Transform EntryAnchor => entryAnchor;
         public Transform ExitAnchor => exitAnchor;
@@ -31,15 +41,9 @@ namespace EndlessRollball.Track
         public TrackLaneMask EntryLanes => entryLanes & TrackLaneMask.All;
         public TrackLaneMask SafeLanes => safeLanes & TrackLaneMask.All;
         public bool RequiredJump => requiredJump;
-        public bool IsPresentationVisible =>
-            presentationRoot == null ||
-            presentationRoot.activeInHierarchy;
-        public bool IsObstacle => kind is TrackSegmentKind.Gap
-            or TrackSegmentKind.StaticObstacle
-            or TrackSegmentKind.MovingObstacle;
-        public float Length => exitAnchor == null || entryAnchor == null
-            ? 0f
-            : exitAnchor.localPosition.z - entryAnchor.localPosition.z;
+        public bool IsPresentationVisible => presentationRoot == null || presentationRoot.activeInHierarchy;
+        public bool IsObstacle => kind is TrackSegmentKind.Gap or TrackSegmentKind.StaticObstacle or TrackSegmentKind.MovingObstacle;
+        public float Length => exitAnchor == null || entryAnchor == null ? 0f : exitAnchor.localPosition.z - entryAnchor.localPosition.z;
 
         public bool Supports(DifficultyMode mode)
         {
@@ -62,7 +66,6 @@ namespace EndlessRollball.Track
         {
             SetPresentationVisible(true);
             gameObject.SetActive(true);
-
             foreach (MovingObstacle obstacle in GetComponentsInChildren<MovingObstacle>(true))
             {
                 obstacle.Configure(difficulty.MovingObstacleSpeed);
@@ -76,8 +79,7 @@ namespace EndlessRollball.Track
 
         public void SetPresentationVisible(bool visible)
         {
-            if (presentationRoot != null && presentationRoot != gameObject &&
-                presentationRoot.transform.IsChildOf(transform))
+            if (presentationRoot != null && presentationRoot != gameObject && presentationRoot.transform.IsChildOf(transform))
                 presentationRoot.SetActive(visible);
         }
 
@@ -112,19 +114,7 @@ namespace EndlessRollball.Track
             return true;
         }
 
-        public void Configure(
-            string configuredId,
-            Transform configuredEntry,
-            Transform configuredExit,
-            TrackSegmentKind configuredKind,
-            DifficultyModeMask configuredModes,
-            TrackLaneMask configuredEntryLanes,
-            TrackLaneMask configuredSafeLanes,
-            bool configuredRequiredJump,
-            float configuredEasyWeight,
-            float configuredNormalWeight,
-            float configuredHardWeight,
-            float configuredEndlessWeight)
+        public void Configure(string configuredId, Transform configuredEntry, Transform configuredExit, TrackSegmentKind configuredKind, DifficultyModeMask configuredModes, TrackLaneMask configuredEntryLanes, TrackLaneMask configuredSafeLanes, bool configuredRequiredJump, float configuredEasyWeight, float configuredNormalWeight, float configuredHardWeight, float configuredEndlessWeight)
         {
             segmentId = configuredId;
             entryAnchor = configuredEntry;
