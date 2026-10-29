@@ -39,6 +39,18 @@ namespace EndlessRollball.Infrastructure
             return bucket;
         }
 
+        public void Clear()
+        {
+            foreach (GameObject instance in leased)
+                if (instance != null) { instance.SetActive(false); Discarding?.Invoke(instance); UnityEngine.Object.Destroy(instance); }
+            foreach (Bucket bucket in buckets.Values)
+                foreach (GameObject instance in bucket.Idle)
+                    if (instance != null) { instance.SetActive(false); Discarding?.Invoke(instance); UnityEngine.Object.Destroy(instance); }
+            leased.Clear();
+            buckets.Clear();
+            statistics.Clear();
+        }
+
         public GameObject Acquire(GameObject prefab, Transform inactiveRoot)
         {
             Bucket bucket = Get(prefab);

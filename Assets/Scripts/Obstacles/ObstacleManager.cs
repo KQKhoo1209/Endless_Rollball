@@ -55,6 +55,8 @@ namespace EndlessRollball.Track
             public Renderer[] Renderers;
             public bool[] RendererDefaults;
             public SideToSideObstacleMotion Motion;
+            public PalmObstacle Palm;
+            public DungeonTrapEncounter Dungeon;
             public Collider[] Colliders;
             public bool Visible = true;
         }
@@ -64,6 +66,48 @@ namespace EndlessRollball.Track
         private readonly Dictionary<TrackSegment, HashSet<long>> attachedEncounters = new Dictionary<TrackSegment, HashSet<long>>();
         // Nine-metre road, with a quarter-metre clearance at each edge.
         private const float FootprintLimitX = 4.25f;
+        private sealed class PrefabGeometry
+        {
+            internal Collider[] Shapes;
+            internal Rigidbody[] Bodies;
+            internal MonoBehaviour[] Scripts;
+            internal SideToSideObstacleMotion[] Motions;
+            internal Renderer[] Renderers;
+            internal bool? ValidStatic, ValidMoving;
+        }
+        private readonly Dictionary<GameObject, PrefabGeometry> geometry = new Dictionary<GameObject, PrefabGeometry>();
+        private readonly Dictionary<TrackSegment, Vector2> gapEdges = new Dictionary<TrackSegment, Vector2>();
+        private PrefabGeometry Geometry(GameObject prefab)
+        {
+            if (!geometry.TryGetValue(prefab, out PrefabGeometry value))
+            {
+                value = new PrefabGeometry
+                {
+                    Shapes = prefab.GetComponentsInChildren<Collider>(true),
+                    Bodies = prefab.GetComponentsInChildren<Rigidbody>(true),
+                    Scripts = prefab.GetComponentsInChildren<MonoBehaviour>(true),
+                    Motions = prefab.GetComponentsInChildren<SideToSideObstacleMotion>(true),
+                    Renderers = prefab.GetComponentsInChildren<Renderer>(true)
+                };
+                foreach (var motion in value.Motions) motion.InvalidateGeometry();
+                geometry.Add(prefab, value);
+            }
+            return value;
+        }
+        private void InvalidateGeometry()
+        {
+            geometry.Clear();
+            fixedFootprints.Clear();
+            gapEdges.Clear();
+        }
+        private void OnValidate() => InvalidateGeometry();
+        private void OnDestroy()
+        {
+            prefabPool.Clear();
+            cachedInstances.Clear();
+            poolStatistics.Clear();
+            InvalidateGeometry();
+        }
         private readonly Dictionary<GameObject, Bounds> fixedFootprints = new Dictionary<GameObject, Bounds>();
         private GameObject[] runFixed = Array.Empty<GameObject>();
         private GameObject[] runMoving = Array.Empty<GameObject>();
@@ -79,7 +123,7 @@ namespace EndlessRollball.Track
         // No pending plan survives a reset, and Attach never rolls a second choice.
         internal readonly struct Placement
         {
-            internal Placement(GameObject prefab, Vector3 position, bool jump, float phase = 0f, float speed = 0f, int taskIndex = 0)
+            internal Placement(GameObject prefab, Vector3 position, bool jump, float phase = 0f, float speed = 0f, int taskIndex = 0, float yawDegrees = 0f)
             {
                 Prefab = prefab;
                 Position = position;
@@ -87,6 +131,7 @@ namespace EndlessRollball.Track
                 Phase = phase;
                 Speed = speed;
                 TaskIndex = taskIndex;
+                YawDegrees = yawDegrees;
             }
 
             internal GameObject Prefab { get; }
@@ -95,6 +140,7 @@ namespace EndlessRollball.Track
             internal float Phase { get; }
             internal float Speed { get; }
             internal int TaskIndex { get; }
+            internal float YawDegrees { get; }
         }
 
         internal readonly struct EncounterPlan
@@ -152,29 +198,14 @@ namespace EndlessRollball.Track
                 return SetupWarning("Assign separate roots with unit world scale.");
             }
 
-            if (fixedPositionPrefabs == null || fixedPositionPrefabs.Count == 0)
-                return SetupWarning("Keep your five neutral fixed prefabs assigned.");
-            if (!ValidateList(fixedPositionPrefabs, false) || !ValidateList(movingPrefabs, true) || !ValidateList(jumpableOnlyPrefabs, false))
-            {
-                return false;
-            }
-
             poolRoot.gameObject.SetActive(false);
-            runFixed = fixedPositionPrefabs.ToArray();
-            runMoving = movingPrefabs.ToArray();
-            runJump = jumpableOnlyPrefabs.ToArray();
-            foreach (GameObject prefab in runFixed)
-            {
-                if (!TryMeasureFixedFootprint(prefab, out Bounds footprint) || footprint.size.x > FootprintLimitX * 2f || footprint.min.z < -6f || footprint.max.z > 6f)
-                {
-                    return SetupWarning($"{prefab.name}: authored footprint does not fit the road. Adjust placement/art manually; obstacles are never rescaled.");
-                }
-
-                fixedFootprints[prefab] = footprint;
-            }
+            UseFixedThemeLibrary(null);
 
             runGapShare = Mathf.Clamp01(gapShareWithinJump);
             planner.Reset();
+            ResetCityPacing();
+            ResetBeachPlanning();
+            ResetDungeonPlanning();
             runSeed = unchecked(trackSeed ^ 0x2468ACE);
             // RunPrepared will release this through SetGenerationPaused(false).
             motionPaused = true;
@@ -188,16 +219,25 @@ namespace EndlessRollball.Track
             AttachPlanned(segment, PlanEncounter(segment, null, segmentIndex, blocked, difficulty, segment.transform.position.z));
         }
 
-        private static float GapTakeoffZ(TrackSegment gap) => GapLip(gap, "Floor_Takeoff", true);
-        private static float GapLandingZ(TrackSegment gap) => GapLip(gap, "Floor_Landing", false);
-        private static float GapLip(TrackSegment gap, string name, bool far)
+        private Vector2 GapEdges(TrackSegment gap)
         {
-            foreach (BoxCollider box in gap.GetComponentsInChildren<BoxCollider>(true))
-                if (box.name == name)
-                    return gap.transform.InverseTransformPoint(box.transform.TransformPoint(box.center + new Vector3(0f, box.size.y * .5f, box.size.z * (far ? .5f : -.5f)))).z;
-            return far ? 8f : 16f;
+            if (!gapEdges.TryGetValue(gap, out Vector2 edges))
+            {
+                edges = new Vector2(8f, 16f);
+                foreach (BoxCollider box in gap.GetComponentsInChildren<BoxCollider>(true))
+                {
+                    bool takeoff = box.name == "Floor_Takeoff";
+                    if (!takeoff && box.name != "Floor_Landing") continue;
+                    float z = gap.transform.InverseTransformPoint(box.transform.TransformPoint(box.center +
+                        new Vector3(0f, box.size.y * .5f, box.size.z * (takeoff ? .5f : -.5f)))).z;
+                    if (takeoff) edges.x = z; else edges.y = z;
+                }
+                gapEdges.Add(gap, edges);
+            }
+            return edges;
         }
-
+        private float GapTakeoffZ(TrackSegment gap) => GapEdges(gap).x;
+        private float GapLandingZ(TrackSegment gap) => GapEdges(gap).y;
         internal void AttachPlanned(TrackSegment segment, EncounterPlan plan)
         {
             if (!ready || segment == null || !plan.HasEncounter || plan.Owner != this || plan.Version != runVersion || segment.SegmentId != plan.Track.SegmentId)
@@ -232,6 +272,8 @@ namespace EndlessRollball.Track
                         Colliders = instance.GetComponentsInChildren<Collider>(true),
                         Motion = instance.GetComponentInChildren<SideToSideObstacleMotion>(true)
                     };
+                    pair.Palm = instance.GetComponent<PalmObstacle>();
+                    pair.Dungeon = instance.GetComponent<DungeonTrapEncounter>();
                     pair.RendererDefaults = new bool[pair.Renderers.Length];
                     for (int r = 0; r < pair.Renderers.Length; r++)
                         pair.RendererDefaults[r] = pair.Renderers[r].enabled;
@@ -239,16 +281,62 @@ namespace EndlessRollball.Track
                 }
 
                 instance.transform.SetParent(activeRoot, false);
-                instance.transform.SetPositionAndRotation(segment.transform.TransformPoint(placement.Position), segment.transform.rotation);
+                instance.transform.SetPositionAndRotation(segment.transform.TransformPoint(placement.Position), segment.transform.rotation * Quaternion.Euler(0f, placement.YawDegrees, 0f));
                 instance.transform.localScale = Vector3.one;
+
                 if (pair.Motion != null)
-                    pair.Motion.Prepare(placement.Speed, placement.Phase, plan.Width * .5f);
+                    pair.Motion.Prepare(placement.Speed, placement.Phase, plan.Width * .5f, plan.ExitX, Radius + PassagePadding);
+
                 ApplyVisibility(pair, segment.IsPresentationVisible);
                 instance.SetActive(true);
+                if (pair.Palm != null) pair.Palm.SetRunning(!motionPaused);
+
                 if (pair.Motion != null)
                     pair.Motion.SetRunning(!motionPaused);
+
+                if(pair.Dungeon!=null) pair.Dungeon.Prepare(ballMovement, placement.Speed, motionPaused);
                 pairs.Add(pair);
-                taskTracker?.RegisterPayload(segment, plan.Index, instance, placement.Jump, pair.Motion, placement.TaskIndex, pair.Colliders, plan.EncounterId, plan.Window(placement.TaskIndex));
+                CombinedObstacleEncounter combined = instance.GetComponent<CombinedObstacleEncounter>();
+
+                if (combined != null)
+                {
+                    taskTracker?.RegisterPayload(
+                        segment,
+                        plan.Index,
+                        combined.NavigationHazards,
+                        false,
+                        null,
+                        0,
+                        combined.NavigationHazards
+                            .GetComponentsInChildren<Collider>(true),
+                        plan.EncounterId,
+                        plan.Window(0));
+
+                    taskTracker?.RegisterPayload(
+                        segment,
+                        plan.Index,
+                        combined.JumpHazards,
+                        true,
+                        null,
+                        1,
+                        combined.JumpHazards
+                            .GetComponentsInChildren<Collider>(true),
+                        plan.EncounterId,
+                        plan.Window(1));
+                }
+                else
+                {
+                    taskTracker?.RegisterPayload(
+                        segment,
+                        plan.Index,
+                        instance,
+                        placement.Jump,
+                        pair.Motion,
+                        placement.TaskIndex,
+                        pair.Colliders,
+                        plan.EncounterId,
+                        plan.Window(placement.TaskIndex), pair.Dungeon != null);
+                }
             }
 
             if (plan.IsGap)
@@ -261,7 +349,14 @@ namespace EndlessRollball.Track
         public void Release(TrackSegment segment)
         {
             if (segment != null)
+            {
+                activeBeachBarriers.Remove(segment);
                 attachedEncounters.Remove(segment);
+                activeRoadworks.Remove(segment);
+                ReleaseJunction(segment);
+                ReleaseCityVehicle(segment);
+            }
+
             activeGaps.Remove(segment);
             if (segment == null || !active.TryGetValue(segment, out List<ObstaclePair> pairs))
             {
@@ -276,29 +371,47 @@ namespace EndlessRollball.Track
         public void SetMotionPaused(bool paused)
         {
             motionPaused = paused;
+            foreach(var barrier in activeBeachBarriers.Values) barrier.SetRunning(!paused);
+            SetJunctionsPaused(paused);
+            SetCityVehiclesPaused(paused);
             foreach (List<ObstaclePair> pairs in active.Values)
                 foreach (ObstaclePair pair in pairs)
+                {
                     if (pair.Motion != null)
                         pair.Motion.SetRunning(!paused);
+                    if (pair.Palm != null) pair.Palm.SetRunning(!paused);
+                    if (pair.Dungeon != null) pair.Dungeon.SetRunning(!paused);
+                }
         }
 
         public void EndRun()
         {
+            FinishDungeonVisit();
             ready = false;
             runVersion = unchecked(runVersion + 1);
             runGapShare = 0f;
             planner.Reset();
+            ResetCityPacing();
+            ResetBeachPlanning();
+            ResetDungeonPlanning();
             motionPaused = true;
+            foreach(var barrier in activeBeachBarriers.Values) barrier.SetRunning(false);
+            activeBeachBarriers.Clear();
+            EndJunctions();
+            EndCityVehicles();
             foreach (List<ObstaclePair> pairs in active.Values)
                 foreach (ObstaclePair pair in pairs)
                     Recycle(pair);
             active.Clear();
             attachedEncounters.Clear();
             activeGaps.Clear();
-            fixedFootprints.Clear();
             runFixed = Array.Empty<GameObject>();
             runMoving = Array.Empty<GameObject>();
             runJump = Array.Empty<GameObject>();
+            fixedLibraryCache.Clear();
+            fixedFamilyCache.Clear();
+            runFixedFamilies = null;
+            activeRoadworks.Clear();
         }
 
         private void LateUpdate()
@@ -348,12 +461,12 @@ namespace EndlessRollball.Track
             return true;
         }
 
-        private static bool TryMeasureFixedFootprint(GameObject prefab, out Bounds footprint)
+        private bool TryMeasureFixedFootprint(GameObject prefab, out Bounds footprint)
         {
             footprint = default;
             bool hasBounds = false;
             Transform root = prefab.transform;
-            foreach (Collider collider in prefab.GetComponentsInChildren<Collider>(true))
+            foreach (Collider collider in Geometry(prefab).Shapes)
             {
                 if (!(collider is BoxCollider box))
                     return false; // This library deliberately uses authored boxes only.
@@ -382,17 +495,45 @@ namespace EndlessRollball.Track
 
         public bool OwnsActiveCollider(Collider shape)
         {
-            if (shape == null || !shape.enabled || shape.isTrigger || !shape.gameObject.activeInHierarchy)
+            if (shape == null ||
+                !shape.enabled ||
+                !shape.gameObject.activeInHierarchy)
+            {
                 return false;
+            }
+
+            foreach(var barrier in activeBeachBarriers.Values)
+                if(barrier.Hazard == shape) return true;
+            PalmObstacle palm = shape.GetComponentInParent<PalmObstacle>();
+            if (shape.isTrigger && (palm == null || !palm.IsLeafSensor(shape))) return false;
+
+            if (OwnsRoadworksCollider(shape))
+                return true;
+
+            if (OwnsJunctionCollider(shape))
+                return true;
+            if (OwnsCityVehicleCollider(shape))
+                return true;
+
             foreach (List<ObstaclePair> pairs in active.Values)
+            {
                 foreach (ObstaclePair pair in pairs)
                 {
-                    if (pair.Instance == null || !pair.Instance.activeInHierarchy)
+                    if (pair.Instance == null ||
+                        !pair.Instance.activeInHierarchy)
+                    {
                         continue;
+                    }
+
                     Transform root = pair.Instance.transform;
-                    if (shape.transform == root || shape.transform.IsChildOf(root))
+
+                    if (shape.transform == root ||
+                        shape.transform.IsChildOf(root))
+                    {
                         return true;
+                    }
                 }
+            }
 
             return false;
         }
@@ -406,11 +547,14 @@ namespace EndlessRollball.Track
             {
                 if (prefab == null || !unique.Add(prefab))
                     return SetupWarning("Remove missing/duplicate prefab entries.");
-                Collider[] shapes = prefab.GetComponentsInChildren<Collider>(true);
-                Rigidbody[] bodies = prefab.GetComponentsInChildren<Rigidbody>(true);
-                MonoBehaviour[] scripts = prefab.GetComponentsInChildren<MonoBehaviour>(true);
-                SideToSideObstacleMotion[] motions = prefab.GetComponentsInChildren<SideToSideObstacleMotion>(true);
-                if (shapes.Length == 0 || prefab.GetComponentsInChildren<Renderer>(true).Length == 0)
+                PrefabGeometry cached = Geometry(prefab);
+                if ((moving ? cached.ValidMoving : cached.ValidStatic) == true) continue;
+                Collider[] shapes = cached.Shapes;
+                Rigidbody[] bodies = cached.Bodies;
+                MonoBehaviour[] scripts = cached.Scripts;
+                SideToSideObstacleMotion[] motions = cached.Motions;
+                PalmObstacle palm = prefab.GetComponent<PalmObstacle>();
+                if (shapes.Length == 0 || cached.Renderers.Length == 0)
                     return SetupWarning($"{prefab.name} needs collision and visuals.");
                 if (moving)
                 {
@@ -419,17 +563,18 @@ namespace EndlessRollball.Track
                         return SetupWarning($"{prefab.name}: invalid moving setup.");
                     }
                 }
-                else if (bodies.Length != 0 || scripts.Length != 0)
+                else if (bodies.Length != 0 || Array.Exists(scripts, script => script == null || script != palm))
                     return SetupWarning($"{prefab.name} is not a static prefab.");
                 foreach (Collider shape in shapes)
                 {
-                    if (!shape.enabled || shape.isTrigger)
+                    if (!shape.enabled || (shape.isTrigger && (palm == null || !palm.IsLeafSensor(shape))))
                         return SetupWarning($"{prefab.name}: invalid collider.");
                     if (moving && shape.transform != bodies[0].transform && !shape.transform.IsChildOf(bodies[0].transform))
                     {
                         return SetupWarning($"{prefab.name}: collider is outside Mover.");
                     }
                 }
+                if (moving) cached.ValidMoving = true; else cached.ValidStatic = true;
             }
 
             return true;

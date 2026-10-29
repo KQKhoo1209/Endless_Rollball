@@ -36,33 +36,37 @@ namespace EndlessRollball.Scenery
         private System.Random sceneryRandom;
         private EnvironmentThemeConfig currentSettings;
         private bool sceneryReady;
-        public void BeginRun(GameMode mode, DifficultyMode difficulty, int trackSeed)
-        {
-            // Compatibility with the original generator origin.
-            BeginRun(mode, difficulty, trackSeed, -12f);
-        }
-
-        public void BeginRun(GameMode mode, DifficultyMode difficulty, int trackSeed, float trackOriginZ)
+        private int runPreparationVersion;
+        public System.Collections.IEnumerator BeginRunAsync(GameMode mode, DifficultyMode difficulty, int trackSeed, float trackOriginZ)
         {
             EndRun();
+            int version = runPreparationVersion;
+            LoadingError = null;
             if (!isActiveAndEnabled)
-                return;
+                yield break;
             CurrentTheme = SelectStartingTheme(mode, difficulty, trackSeed);
             currentSettings = GetSettings(CurrentTheme);
             if (activeSceneryRoot == null || sceneryPoolRoot == null || activeSceneryRoot == sceneryPoolRoot || activeSceneryRoot.IsChildOf(sceneryPoolRoot) || sceneryPoolRoot.IsChildOf(activeSceneryRoot))
             {
                 Debug.LogWarning("Assign separate, non-nested active and pool roots.", this);
-                return;
+                yield break;
             }
 
             if (!activeSceneryRoot.gameObject.activeInHierarchy || !HasValidTheme(CurrentTheme))
             {
                 Debug.LogWarning("The active root must be active; the starting theme " + "needs a valid prefab list and outdoor skybox.", this);
-                return;
+                yield break;
             }
 
             if (!ConfigureJourney(mode, difficulty, trackSeed, trackOriginZ))
-                return;
+                yield break;
+            while (!TryGetScenery(CurrentTheme, out _))
+            {
+                if (LoadingError != null) yield break;
+                yield return null;
+                if (version != runPreparationVersion || !isActiveAndEnabled) yield break;
+            }
+            if (version != runPreparationVersion || !isActiveAndEnabled) yield break;
             sceneryPoolRoot.gameObject.SetActive(false);
             sceneryRandom = new System.Random(unchecked(trackSeed ^ 0x13579BDF));
             CapturePresentation();
@@ -87,12 +91,27 @@ namespace EndlessRollball.Scenery
             }
 
             EnvironmentJourneyPlanner.ScenerySlot slot = GetScenerySlot(segmentIndex);
-            GameObject prefab = slot.IsTunnel ? transitionTunnelSceneryPrefab : NextVariant(GetSettings(slot.Theme));
+            GameObject prefab;
+            if (segment.GetComponent<JunctionTrafficController>() != null)
+            {
+                if (slot.IsTunnel || slot.Theme != EnvironmentTheme.Street ||
+                    !TryGetScenery(slot.Theme, out var set) || set.junctionScenery == null)
+                {
+                    Debug.LogError("A Street junction needs its junction scenery prefab.", segment);
+                    return;
+                }
+                prefab = set.junctionScenery;
+            }
+            else
+            {
+                prefab = slot.IsTunnel ? transitionTunnelSceneryPrefab : NextVariant(GetSettings(slot.Theme));
+            }
             bool hidden = slot.ZoneId > visibleZone;
             GameObject instance = AcquireScenery(prefab);
             instance.transform.SetParent(activeSceneryRoot, false);
             instance.transform.SetPositionAndRotation(segment.transform.position, segment.transform.rotation);
             instance.transform.localScale = Vector3.one;
+            instance.GetComponent<CityBusStopSlots>()?.Configure(0);
             var pair = new SceneryPair
             {
                 Prefab = prefab,
@@ -108,6 +127,12 @@ namespace EndlessRollball.Scenery
             segment.SetPresentationVisible(!hidden);
         }
 
+        internal void SetRoadsideStop(TrackSegment segment, bool rightSide)
+        {
+            if (activeScenery.TryGetValue(segment, out SceneryPair pair) && pair.Instance != null)
+                pair.Instance.GetComponent<CityBusStopSlots>()?.Configure(rightSide ? 1 : -1);
+        }
+
         public void Release(TrackSegment segment)
         {
             if (segment == null || !activeScenery.TryGetValue(segment, out SceneryPair pair))
@@ -118,7 +143,9 @@ namespace EndlessRollball.Scenery
 
         public void EndRun()
         {
+            runPreparationVersion++;
             sceneryReady = false;
+            StreamingHoldRequired = false;
             ResetJourneyPresentation();
             foreach (SceneryPair pair in activeScenery.Values)
                 ReturnScenery(pair);
@@ -160,7 +187,9 @@ namespace EndlessRollball.Scenery
             if (bag.Index >= bag.Items.Count)
             {
                 bag.Items.Clear();
-                bag.Items.AddRange(settings.sceneryPrefabs);
+                if (!TryGetScenery(settings.Theme, out EnvironmentScenerySet set))
+                    throw new System.InvalidOperationException("Scenery requested before readiness.");
+                bag.Items.AddRange(set.prefabs);
                 for (int i = bag.Items.Count - 1; i > 0; i--)
                 {
                     int other = sceneryRandom.Next(i + 1);

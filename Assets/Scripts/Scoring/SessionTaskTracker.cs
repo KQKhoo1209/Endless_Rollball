@@ -126,14 +126,16 @@ namespace EndlessRollball.Track
             trackFloors.Add(track, owned);
         }
 
-        internal void RegisterPayload(TrackSegment track, int index, GameObject payload, bool requiredJump, SideToSideObstacleMotion motion, int localIndex = 0, Collider[] cachedColliders = null, long encounterId = 0, ObstacleManager.TaskWindow window = null)
+        internal void RegisterPayload(TrackSegment track, int index, GameObject payload, bool requiredJump, SideToSideObstacleMotion motion, int localIndex = 0, Collider[] cachedColliders = null, long encounterId = 0, ObstacleManager.TaskWindow window = null, bool usePlannedMotionWindow = false)
         {
             Collider[] hazards = cachedColliders ?? payload.GetComponentsInChildren<Collider>(true);
             Bounds envelope = default;
             bool measured = false;
             foreach (Collider collider in hazards)
             {
-                if (!(collider is BoxCollider box) || !box.enabled || box.isTrigger)
+                PalmObstacle palm = collider.GetComponentInParent<PalmObstacle>();
+                if (!(collider is BoxCollider box) || !box.enabled ||
+                    (box.isTrigger && (palm == null || !palm.IsLeafSensor(box)) && box.GetComponentInParent<DungeonTrapEncounter>() == null))
                     continue;
                 EncapsulateBox(box, payload.transform, ref envelope, ref measured);
             }
@@ -160,8 +162,23 @@ namespace EndlessRollball.Track
             }
 
             float hazardStart = payload.transform.TransformPoint(envelope.min).z;
+            if (usePlannedMotionWindow && window != null)
+                hazardStart = window.HazardStartZ;
+            else if (window != null)
+                hazardStart = Mathf.Min(hazardStart, window.HazardStartZ);
+
             float hazardEnd = payload.transform.TransformPoint(envelope.max).z;
+            if (usePlannedMotionWindow && window != null)
+                hazardEnd = window.LandingStartZ - Radius - .10f;
             AddOpportunity(ApplyWindow(new Opportunity { Track = track, Index = index, LocalIndex = localIndex, Hazards = hazards, Kind = requiredJump ? TaskKind.JumpLanding : TaskKind.Navigation, EntryZ = hazardStart - 12f, HazardStartZ = hazardStart, LandingStartZ = hazardEnd + Radius + .10f, DeadlineZ = track.ExitAnchor.position.z - Radius - .10f }, encounterId, window));
+        }
+
+        internal void UpdateMovingJumpWindow(TrackSegment track, float start, float end)
+        {
+            foreach(var task in opportunities)
+                if(task.Track==track && task.Kind==TaskKind.JumpLanding &&
+                    (task.State==TaskState.Upcoming || task.State==TaskState.Encountered))
+                { task.HazardStartZ=start; task.LandingStartZ=end+Radius+.15f; task.EntryZ=start-12f; }
         }
 
         internal void RegisterGap(TrackSegment track, int index, int localIndex = 0, long encounterId = 0, ObstacleManager.TaskWindow window = null)
@@ -418,15 +435,34 @@ namespace EndlessRollball.Track
                     // A fast fall may pass the exit/deadline before reaching the fall threshold.
                     if (task.State != TaskState.Cancelled && task.State != TaskState.Succeeded && PlayerZ + Radius >= task.HazardStartZ && PlayerZ <= task.RecoveryEndZ + TrackSegment.ContractLength && (failed == null || task.HazardStartZ > failed.HazardStartZ))
                         failed = task;
+            bool separateCombinedCollision =
+                outcome == SessionOutcome.Collision &&
+                relatedHazard != null &&
+                relatedHazard.GetComponentInParent<CombinedObstacleEncounter>() != null;
+
             if (sessionActive && !scoringSuspended && failed != null)
             {
                 foreach (Opportunity task in opportunities)
-                    if (task.EncounterId == failed.EncounterId)
+                {
+                    if (task.EncounterId != failed.EncounterId)
+                        continue;
+
+                    if (separateCombinedCollision &&
+                        !ReferenceEquals(task, failed))
                     {
-                        Enter(task);
-                        if (task.State == TaskState.Encountered)
-                            Resolve(task, false, outcome.ToString());
+                        // Recovery skips the unfinished companion challenge.
+                        // Preserve any task that already succeeded or failed.
+                        Cancel(task);
+                        continue;
                     }
+
+                    Enter(task);
+
+                    if (task.State == TaskState.Encountered)
+                        Resolve(task, false, outcome.ToString());
+                }
+
+                Publish();
             }
 
             float recoveryZ = PlayerZ + .5f;
@@ -569,6 +605,32 @@ namespace EndlessRollball.Track
                     combined = new Bounds(point, Vector3.zero);
                     initialized = true;
                 }
+            }
+        }
+
+        internal void RecordNavigationContact(Collider hazard)
+        {
+            if (!CanScore || hazard == null)
+                return;
+
+            foreach (Opportunity task in opportunities)
+            {
+                if (task.Kind != TaskKind.Navigation ||
+                    (task.State != TaskState.Upcoming &&
+                     task.State != TaskState.Encountered) ||
+                    Array.IndexOf(task.Hazards, hazard) < 0)
+                {
+                    continue;
+                }
+
+                // Actual contact can occur before the planned approach window
+                // if a dynamic box has moved.
+                task.EntryZ = Mathf.Min(task.EntryZ, PlayerZ);
+
+                Enter(task);
+                Resolve(task, false, hazard.GetComponentInParent<PalmObstacle>() != null ? "Palm leaf contact" : "Cargo contact");
+
+                return;
             }
         }
     }

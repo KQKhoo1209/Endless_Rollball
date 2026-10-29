@@ -14,34 +14,106 @@ namespace EndlessRollball.Track
 
         internal readonly struct SegmentPlan
         {
-            public SegmentPlan(TrackSegment track, List<EncounterPlan> encounters)
+            public SegmentPlan(
+                TrackSegment track,
+                List<EncounterPlan> encounters,
+                RoadworksTrackEncounter roadworks = null,
+                int index = 0,
+                long encounterId = 0,
+                TaskWindow roadworksWindow = null,
+                JunctionTrafficController junction = null,
+                TaskWindow junctionWindow = null,
+                int trafficSeed = 0,
+                CityVehicleEncounter cityVehicle = null,
+                GameObject vehiclePrefab = null,
+                Vector3 vehiclePosition = default,
+                TaskWindow vehicleWindow = null,
+                BeachBarrierEncounter beachBarrier = null)
             {
+                BeachBarrier = beachBarrier;
                 Track = track;
                 Encounters = encounters;
+                Roadworks = roadworks;
+                Index = index;
+                EncounterId = encounterId;
+                RoadworksWindow = roadworksWindow;
+                Junction = junction;
+                JunctionWindow = junctionWindow;
+                TrafficSeed = trafficSeed;
+                CityVehicle = cityVehicle;
+                VehiclePrefab = vehiclePrefab;
+                VehiclePosition = vehiclePosition;
+                VehicleWindow = vehicleWindow;
             }
 
+            public BeachBarrierEncounter BeachBarrier { get; }
             public TrackSegment Track { get; }
             public List<EncounterPlan> Encounters { get; }
+            public RoadworksTrackEncounter Roadworks { get; }
+            public int Index { get; }
+            public long EncounterId { get; }
+            public TaskWindow RoadworksWindow { get; }
+            public JunctionTrafficController Junction { get; }
+            public TaskWindow JunctionWindow { get; }
+            public int TrafficSeed { get; }
+            public CityVehicleEncounter CityVehicle { get; }
+            public GameObject VehiclePrefab { get; }
+            public Vector3 VehiclePosition { get; }
+            public TaskWindow VehicleWindow { get; }
+
             public bool IsGap => Track != null && Track.RequiredJump;
+            public bool ReplacesTrack => BeachBarrier != null || IsGap || Roadworks != null || Junction != null ||
+                (CityVehicle != null && CityVehicle.IsMoving);
 
             public float EndZ
             {
                 get
                 {
+                    if (VehicleWindow != null)
+                        return VehicleWindow.RecoveryEndZ;
+                    if (JunctionWindow != null)
+                        return JunctionWindow.RecoveryEndZ;
+                    if (RoadworksWindow != null)
+                        return RoadworksWindow.RecoveryEndZ;
+
                     float end = float.NegativeInfinity;
+
                     if (Encounters != null)
                         foreach (EncounterPlan plan in Encounters)
                             end = Mathf.Max(end, plan.EndZ);
+
                     return end;
                 }
             }
         }
 
-        internal SegmentPlan PlanSegment(TrackSegment road, TrackSegment gap, int index, bool blocked, DifficultySnapshot difficulty, float originZ, float reservationLimit)
+        internal SegmentPlan PlanSegment(TrackSegment road, TrackSegment gap, int index, bool blocked, DifficultySnapshot difficulty, float originZ, float reservationLimit, ThemeObstacleLibrary library = null, bool allowJunction = false, bool allowCityTraffic = false, bool allowStops = false, bool allowBeachBarriers = false)
         {
             if (!ready || !isActiveAndEnabled || road == null || blocked || index < 0 || road.Kind != TrackSegmentKind.Empty)
                 return default;
+
+            UseFixedThemeLibrary(library);
+
+            if (library != null && library.DungeonTraps.Length > 0)
+            {
+                // Give independently configured physical gaps their existing selection chance first.
+                var gapRandom=new System.Random(unchecked(runSeed ^ index*3571));
+                var savedFixed=runFixed; runFixed=Array.Empty<GameObject>();
+                var physicalGap=ChooseEncounter(road,gap,index,(long)Math.Round((originZ+12)*1000),difficulty,originZ,12,reservationLimit,gapRandom,true);
+                runFixed=savedFixed;
+                if(physicalGap.IsGap)
+                { planner.Commit(index,physicalGap.EndZ,0,"Gap"); return new SegmentPlan(gap,new List<EncounterPlan>{physicalGap}); }
+                if(TryPlanDungeon(road,index,difficulty,originZ,reservationLimit,library,out var dungeon)) return dungeon;
+            }
+            if(library == null || library.DungeonTraps.Length == 0) FinishDungeonVisit();
+            else runFixed = Array.Empty<GameObject>(); // Dungeon rejects must not bypass its reservations through generic parking.
+
+            if (allowBeachBarriers && TryPlanBeachBarrier(road, index, difficulty, originZ, reservationLimit, library, out SegmentPlan beach)) return beach;
+
             var encounters = new List<EncounterPlan>(3);
+            if (library != null && library.CityPacing != null)
+                return PlanPacedCity(road, gap, index, difficulty, originZ, reservationLimit,
+                    library, allowJunction, allowCityTraffic, allowStops);
             float spacing = difficulty.Mode == DifficultyMode.Hard ? 8f : difficulty.Mode == DifficultyMode.Normal ? 12f : difficulty.Mode == DifficultyMode.Endless ? Mathf.Lerp(24f, 8f, difficulty.Progress01) : 24f;
             int slots = Mathf.Max(1, Mathf.FloorToInt(24f / spacing));
             TrackSegment selected = road;
@@ -52,7 +124,22 @@ namespace EndlessRollball.Track
                 var random = new System.Random(unchecked(runSeed ^ (int)identity ^ (int)(identity >> 32)));
                 if (!planner.Roll(index, EncounterPlanner.Probability(difficulty), difficulty, random))
                     continue;
-                EncounterPlan plan = ChooseEncounter(road, slot == 0 ? gap : null, index, identity, difficulty, originZ, centre, reservationLimit, random);
+                if (slot == 0 && TryPlanTrackAlternative(library, road, index, identity,
+                    difficulty, originZ, reservationLimit, random, allowJunction,
+                    allowCityTraffic, allowStops, false, out SegmentPlan replacement))
+                    return replacement;
+                EncounterPlan plan = ChooseEncounter(road, slot == 0 ? gap : null, index, identity, difficulty, originZ, centre, reservationLimit, random, true);
+                if (!plan.HasEncounter)
+                {
+                    // Before repeating a family, try all valid alternative
+                    // track encounters without their usual frequency roll.
+                    if (slot == 0 && TryPlanTrackAlternative(library, road, index, identity,
+                        difficulty, originZ, reservationLimit, random, allowJunction,
+                        allowCityTraffic, allowStops, true, out replacement))
+                        return replacement;
+                    plan = ChooseEncounter(road, slot == 0 ? gap : null, index, identity,
+                        difficulty, originZ, centre, reservationLimit, random);
+                }
                 if (!plan.HasEncounter)
                     continue;
                 encounters.Add(plan);
@@ -68,10 +155,13 @@ namespace EndlessRollball.Track
         }
 
         // Compatibility entry point for callers that request one segment's first encounter.
-        internal EncounterPlan PlanEncounter(TrackSegment road, TrackSegment gap, int index, bool blocked, DifficultySnapshot difficulty, float originZ)
+        internal EncounterPlan PlanEncounter(TrackSegment road, TrackSegment gap, int index, bool blocked, DifficultySnapshot difficulty, float originZ, ThemeObstacleLibrary library = null)
         {
             if (!ready || blocked || road == null || road.Kind != TrackSegmentKind.Empty)
                 return default;
+
+            UseFixedThemeLibrary(library);
+
             long identity = (long)Math.Round((originZ + 12f) * 1000d);
             var random = new System.Random(unchecked(runSeed ^ (int)identity ^ (int)(identity >> 32)));
             if (!planner.Roll(index, EncounterPlanner.Probability(difficulty), difficulty, random))
@@ -82,31 +172,37 @@ namespace EndlessRollball.Track
             return plan;
         }
 
-        internal void AttachSegment(TrackSegment segment, SegmentPlan plan)
+        internal void AttachSegment(TrackSegment segment, SegmentPlan plan,
+            EndlessRollball.Scenery.EnvironmentManager environment = null,
+            TrackGenerator generator = null)
         {
+            if (plan.BeachBarrier != null)
+            { AttachBeachBarrier(segment, plan); return; }
+            if (plan.CityVehicle != null)
+            {
+                AttachCityVehicle(segment, plan, environment, generator);
+                return;
+            }
+            if (plan.Junction != null)
+            {
+                AttachJunction(segment, plan);
+                return;
+            }
+            if (plan.Roadworks != null)
+            {
+                AttachRoadworks(segment, plan);
+                return;
+            }
+
             if (plan.Encounters != null)
                 foreach (EncounterPlan encounter in plan.Encounters)
                     AttachPlanned(segment, encounter);
         }
 
-        private EncounterPlan ChooseEncounter(TrackSegment road, TrackSegment gap, int index, long identity, DifficultySnapshot difficulty, float origin, float centre, float limit, System.Random random)
+        private EncounterPlan ChooseEncounter(TrackSegment road, TrackSegment gap, int index, long identity, DifficultySnapshot difficulty, float origin, float centre, float limit, System.Random random, bool avoidLastFamily = false)
         {
-            if (combinationPatterns.Length > 0 && random.NextDouble() < difficulty.CombinationChance)
-            {
-                int offset = random.Next(combinationPatterns.Length);
-                for (int attempt = 0; attempt < combinationPatterns.Length; attempt++)
-                {
-                    ObstaclePattern pattern = combinationPatterns[(offset + attempt) % combinationPatterns.Length];
-                    if (pattern == null || pattern.Family == planner.LastFamily || (pattern.UsesGap && gap == null))
-                        continue;
-                    EncounterPlan result = BuildPattern(pattern, road, gap, index, identity, difficulty, origin, centre, limit);
-                    if (result.HasEncounter)
-                        return result;
-                }
-            }
-
-            bool jumping = runJump.Length > 0 && random.NextDouble() < jumpFraction;
-            if (jumping && gap != null && GapTracksEnabled && random.NextDouble() < runGapShare)
+            bool jumping = random.NextDouble() < jumpFraction;
+            if (jumping && gap != null && GapTracksEnabled && (!avoidLastFamily || planner.LastFamily != "Gap") && random.NextDouble() < runGapShare)
             {
                 float first = origin + GapTakeoffZ(gap);
                 float landing = origin + GapLandingZ(gap) + Radius + .25f;
@@ -125,6 +221,9 @@ namespace EndlessRollball.Track
                     return new EncounterPlan(this, runVersion, index, gap, Array.Empty<Placement>(), true, end, 0f, 9f, identity, "Gap", new[] { window }, 1);
                 }
             }
+            // Physical gaps were considered above.
+            // A physical jump obstacle additionally requires a jump prefab.
+            jumping = jumping && runJump.Length > 0;
 
             bool moving = !jumping && runMoving.Length > 0 && difficulty.MovingObstacleSpeed > 0f && random.NextDouble() < movingFraction;
             GameObject[] choices = jumping ? runJump : moving ? runMoving : runFixed;
@@ -143,33 +242,57 @@ namespace EndlessRollball.Track
                     GameObject prefab = choices[(offset + attempt) % choices.Length];
                     if (!TryGetFootprint(prefab, out Bounds bounds))
                         continue;
-                    float x = 0f, exit = 0f;
+                    string familyId = moving ? "Moving" : jumping ? "Hurdle" : FixedFamilyFor(prefab);
+                    if (avoidLastFamily && familyId == planner.LastFamily)
+                        continue;
+                    float yawDegrees = 0f;
+                    float halfWidth = difficulty.Corridor.Width * .5f;
+                    float x = -bounds.center.x, exit = 0f;
+                    Bounds sweep = bounds;
+                    if (jumping && (bounds.size.x > difficulty.Corridor.Width || !CanClearJump(bounds, difficulty)))
+                        continue;
                     if (!jumping && !moving)
                     {
-                        if (bounds.size.x + 2f * Radius + .3f > 9f)
+                        PalmObstacle palm = prefab.GetComponent<PalmObstacle>();
+                        bool beachRoot = palm != null && palm.RootedOnBeach;
+                        if (!beachRoot && bounds.size.x + 2f * (Radius + PassagePadding + RoadCorridor.BoundarySkin) > difficulty.Corridor.Width)
                             continue;
-                        bool left = random.Next(2) == 0;
-                        x = left ? -4.5f - bounds.min.x : 4.5f - bounds.max.x;
-                        exit = left ? (x + bounds.max.x + 4.5f) * .5f : (-4.5f + x + bounds.min.x) * .5f;
+                        bool left = cityPacingActive ? (planner.PreferredOppositeSide > 0f) != cityReverseSide : random.Next(2) == 0;
+                        if (palm != null) left = palm.BlocksLeft;
+                        if (familyId == "Street.ParkedVehicles" && !left)
+                        {
+                            yawDegrees = 180f;
+                            bounds = RotatedFootprint(bounds, yawDegrees);
+                            sweep = bounds;
+                        }
+                        x = beachRoot ? palm.RoadsideX(halfWidth) :
+                            left ? -halfWidth + RoadCorridor.BoundarySkin - bounds.min.x : halfWidth - RoadCorridor.BoundarySkin - bounds.max.x;
+                        if (beachRoot)
+                        {
+                            float nearEdge = left ? x + bounds.max.x : x + bounds.min.x;
+                            float passageWidth = left ? halfWidth - nearEdge : nearEdge + halfWidth;
+                            if (nearEdge <= -halfWidth || nearEdge >= halfWidth ||
+                                passageWidth < 2f * (Radius + PassagePadding + RoadCorridor.BoundarySkin))
+                                continue;
+                        }
+                        exit = left ? (x + bounds.max.x + halfWidth) * .5f : (-halfWidth + x + bounds.min.x) * .5f;
                     }
 
-                    if (moving && bounds.size.x + 2f * Radius + .3f > 9f)
-                        continue;
-                    float landingAllowance = jumping ? JumpHalfTravel(difficulty) + .5f : 1f;
-                    float placementCentre = Mathf.Min(centre, limit - origin - bounds.size.z * .5f - Radius - .15f - landingAllowance);
-                    float first = origin + placementCentre - bounds.size.z * .5f;
-                    float last = origin + placementCentre + bounds.size.z * .5f;
                     if (moving)
                     {
-                        SideToSideObstacleMotion motion = prefab.GetComponentInChildren<SideToSideObstacleMotion>(true);
-                        if (motion != null)
-                        {
-                            Bounds travel = motion.AuthoredTravelBounds;
-                            first += Mathf.Min(0, travel.min.z);
-                            last += Mathf.Max(0, travel.max.z);
-                        }
+                        SideToSideObstacleMotion motion = Geometry(prefab).Motions.Length == 1 ? Geometry(prefab).Motions[0] : null;
+                        exit = (random.Next(2) == 0 ? -1f : 1f) * (halfWidth - Radius - PassagePadding - RoadCorridor.BoundarySkin);
+                        x = 0f; // The motion path is measured in the obstacle root's coordinates.
+                        if (motion == null || motion.transform.parent != prefab.transform ||
+                            !motion.TryPlanBounds(halfWidth, exit, Radius + PassagePadding, out Bounds travel))
+                            continue;
+                        sweep.SetMinMax(bounds.min + travel.min - motion.transform.localPosition,
+                            bounds.max + travel.max - motion.transform.localPosition);
                     }
-
+                    float landingAllowance = jumping ? JumpHalfTravel(difficulty) + .5f : 1f;
+                    float placementCentre = Mathf.Min(centre, limit - origin - sweep.size.z * .5f - Radius - .15f - landingAllowance);
+                    float first = origin + placementCentre - sweep.size.z * .5f;
+                    float last = origin + placementCentre + sweep.size.z * .5f;
                     float landing = last + Radius + .15f;
                     float end = landing + landingAllowance;
                     if (first < origin + .5f || end > limit || !difficulty.Corridor.Contains(exit, Radius) || !planner.CanReach(index, first, end, exit, difficulty, LateralSpeed, Acceleration))
@@ -184,8 +307,8 @@ namespace EndlessRollball.Track
                         DeadlineZ = end,
                         RecoveryEndZ = end
                     };
-                    var placement = new Placement(prefab, new Vector3(x, 0f, placementCentre - bounds.center.z), jumping, random.Next(2) == 0 ? .25f : .75f, moving ? difficulty.MovingObstacleSpeed : 0f, task);
-                    return new EncounterPlan(this, runVersion, index, road, new[] { placement }, false, end, exit, 9f, identity, moving ? "Moving" : jumping ? "Hurdle" : "Fixed", new[] { window });
+                    var placement = new Placement(prefab, new Vector3(x, 0f, placementCentre - sweep.center.z), jumping, random.Next(2) == 0 ? .25f : .75f, moving ? difficulty.MovingObstacleSpeed : 0f, task, yawDegrees);
+                    return new EncounterPlan(this, runVersion, index, road, new[] { placement }, false, end, exit, difficulty.Corridor.Width, identity, familyId, new[] { window });
                 }
 
                 choices = runFixed;
@@ -195,11 +318,24 @@ namespace EndlessRollball.Track
             return default;
         }
 
+        private const float PassagePadding = .15f;
         private float Radius => ballMovement != null ? ballMovement.SphereRadius : .5f;
         private float LateralSpeed => ballMovement != null ? ballMovement.MaxLateralSpeed : 7f;
         private float Acceleration => ballMovement != null ? ballMovement.SteeringAcceleration : 22f;
 
         private float JumpHalfTravel(DifficultySnapshot difficulty) => difficulty.ForwardSpeed * (ballMovement != null ? ballMovement.JumpSpeed : 6f) / Mathf.Max(.1f, -Physics.gravity.y);
+        private bool CanClearJump(Bounds bounds, DifficultySnapshot difficulty)
+        {
+            float gravity = Mathf.Max(.1f, -Physics.gravity.y);
+            float jumpSpeed = ballMovement != null ? ballMovement.JumpSpeed : 6f;
+            float clearanceHeight = Mathf.Max(0f, bounds.max.y) + .08f;
+            float verticalBudget = jumpSpeed * jumpSpeed - 2f * gravity * clearanceHeight;
+            if (verticalBudget <= 0f)
+                return false;
+            float clearTravel = 2f * Mathf.Sqrt(verticalBudget) / gravity * difficulty.ForwardSpeed;
+            return clearTravel >= bounds.size.z + 2f * Radius + .15f;
+        }
+
         private EncounterPlan BuildPattern(ObstaclePattern pattern, TrackSegment road, TrackSegment gap, int index, long identity, DifficultySnapshot difficulty, float origin, float centre, float limit)
         {
             if (pattern.Stages.Length == 0 || pattern.Placements.Length == 0)
@@ -229,12 +365,16 @@ namespace EndlessRollball.Track
                     if (x + bounds.min.x < -4.505f || x + bounds.max.x > 4.505f)
                         return default;
                     float passage = pattern.Stages[stage].passageX;
-                    if (passage + Radius + .08f > x + bounds.min.x && passage - Radius - .08f < x + bounds.max.x)
+                    if (passage + Radius + PassagePadding > x + bounds.min.x && passage - Radius - PassagePadding < x + bounds.max.x)
                         return default;
                     nav[stage] = true;
                 }
                 else
+                {
+                    if (x + bounds.min.x < -4.505f || x + bounds.max.x > 4.505f || !CanClearJump(bounds, difficulty))
+                        return default;
                     jump[stage] = true;
+                }
                 starts[stage] = Mathf.Min(starts[stage], origin + z + bounds.min.z);
                 ends[stage] = Mathf.Max(ends[stage], origin + z + bounds.max.z);
                 placements[i] = new Placement(authored.prefab, new Vector3(x, 0f, z), authored.requiredJump, taskIndex: stage * 2 + (authored.requiredJump ? 1 : 0));

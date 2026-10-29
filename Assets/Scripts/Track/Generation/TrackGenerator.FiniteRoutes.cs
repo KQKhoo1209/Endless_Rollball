@@ -72,7 +72,7 @@ namespace EndlessRollball.Track
             hasFiniteRoute = true;
             // Preserve the profile identifier, but distinguish the changed
             // finite task layout from previous continuous layouts.
-            finiteRouteIdentifier = $"finite-v2-m{(int)mode}" + $"-t{FiniteRouteNumber(targetSeconds)}" + $"-s{FiniteRouteNumber(speed)}" + $"-z{FiniteRouteNumber(startZ)}" + $"-p{FiniteRouteNumber(playerStartZ)}" + $"-g{finishSegmentIndex}" + $"-clear{FiniteRouteNumber(finishClearance)}" + $"-r{finishRunoffSegments}" + $"-f{minimumFinalThemeSegments}";
+            finiteRouteIdentifier = $"finite-v4-anchors-m{(int)mode}" + $"-t{FiniteRouteNumber(targetSeconds)}" + $"-s{FiniteRouteNumber(speed)}" + $"-z{FiniteRouteNumber(startZ)}" + $"-p{FiniteRouteNumber(playerStartZ)}" + $"-g{finishSegmentIndex}" + $"-clear{FiniteRouteNumber(finishClearance)}" + $"-r{finishRunoffSegments}" + $"-f{minimumFinalThemeSegments}";
             double nominalSeconds = ((double)finishLineZ - playerStartZ) / speed;
             Debug.Log($"Finite route: {mode}/{currentRun.Mode}, " + $"target {targetSeconds:F0}s, nominal " + $"{nominalSeconds:F1}s, gate Z={finishLineZ:F1}, " + $"gate index={finishSegmentIndex}, clearance={finishClearance:F1}m, " + $"total tracks={finiteSegmentLimit}. " + "Finish corridor ready.", this);
             return true;

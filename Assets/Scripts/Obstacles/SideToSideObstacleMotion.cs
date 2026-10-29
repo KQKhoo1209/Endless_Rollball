@@ -39,32 +39,77 @@ namespace EndlessRollball.Track
             }
         }
 
-        public void Prepare(float configuredSpeed, float configuredPhase, float corridorHalfWidth = 4.5f)
+        private bool shapeMeasured;
+        private float minShape, maxShape;
+        internal void InvalidateGeometry() => shapeMeasured = false;
+        private void OnValidate() => InvalidateGeometry();
+        private void MeasureShape()
+        {
+            if (shapeMeasured) return;
+            shapeMeasured = true;
+            minShape = float.PositiveInfinity;
+            maxShape = float.NegativeInfinity;
+            foreach (BoxCollider box in GetComponentsInChildren<BoxCollider>(true))
+            {
+                if (!box.enabled || box.isTrigger) continue;
+                Matrix4x4 matrix = transform.parent != null ? transform.parent.worldToLocalMatrix * box.transform.localToWorldMatrix : box.transform.localToWorldMatrix;
+                Vector3 translation = transform.parent != null ? transform.localPosition : transform.position;
+                for (int corner = 0; corner < 8; corner++)
+                {
+                    Vector3 point = box.center + Vector3.Scale(box.size * .5f, new Vector3((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1));
+                    float x = matrix.MultiplyPoint3x4(point).x - translation.x;
+                    minShape = Mathf.Min(minShape, x);
+                    maxShape = Mathf.Max(maxShape, x);
+                }
+            }
+        }
+
+        internal bool TryPlanBounds(float corridorHalfWidth, float passageX, float passageHalfWidth, out Bounds travel)
+            => EvaluateRoute(corridorHalfWidth, passageX, passageHalfWidth, null, out travel);
+
+        // The identical arithmetic serves bounds-only candidates and the acquired instance.
+        private bool EvaluateRoute(float corridorHalfWidth, float passageX, float passageHalfWidth, Vector3[] output, out Bounds travel)
+        {
+            MeasureShape();
+            float left = -corridorHalfWidth + RoadCorridor.BoundarySkin;
+            float right = corridorHalfWidth - RoadCorridor.BoundarySkin;
+            if (passageHalfWidth > 0f)
+            {
+                if (passageX >= 0f) right = Mathf.Min(right, passageX - passageHalfWidth);
+                else left = Mathf.Max(left, passageX + passageHalfWidth);
+            }
+            float minPosition = left - minShape, maxPosition = right - maxShape;
+            travel = default;
+            if (float.IsInfinity(minShape) || minPosition > maxPosition) return false;
+            bool authored = localWaypointOffsets != null && localWaypointOffsets.Length >= 2;
+            int count = authored ? localWaypointOffsets.Length : 2;
+            for (int i = 0; i < count; i++)
+            {
+                Vector3 point = authored ? localWaypointOffsets[i] : (i == 0 ? Vector3.left : Vector3.right) * halfTravel;
+                point.x = Mathf.Clamp(localHomePosition.x + point.x, minPosition, maxPosition) - localHomePosition.x;
+                if (output != null) output[i] = point;
+                Vector3 position = localHomePosition + point;
+                if (i == 0) travel = new Bounds(position, Vector3.zero);
+                else travel.Encapsulate(position);
+            }
+            return true;
+        }
+
+        public void Prepare(float configuredSpeed, float configuredPhase, float corridorHalfWidth = 4.5f, float passageX = 0f, float passageHalfWidth = 0f)
         {
             if (body == null)
                 body = GetComponent<Rigidbody>();
             speed = Mathf.Max(0f, configuredSpeed);
             startPhase = Mathf.Clamp01(configuredPhase);
             // Snapshot the path per acquisition; pausing does not rebuild or reset it.
-            route = localWaypointOffsets != null && localWaypointOffsets.Length >= 2 ? (Vector3[])localWaypointOffsets.Clone() : new[]
+            int pointCount = localWaypointOffsets != null && localWaypointOffsets.Length >= 2 ? localWaypointOffsets.Length : 2;
+            if (route == null || route.Length != pointCount) route = new Vector3[pointCount];
+            if (!EvaluateRoute(corridorHalfWidth, passageX, passageHalfWidth, route, out _))
             {
-                Vector3.left * halfTravel,
-                Vector3.right * halfTravel
-            };
-            float extent = 0f;
-            foreach (BoxCollider box in GetComponentsInChildren<BoxCollider>(true))
-            {
-                Matrix4x4 matrix = transform.worldToLocalMatrix * box.transform.localToWorldMatrix;
-                for (int corner = 0; corner < 8; corner++)
-                {
-                    Vector3 point = box.center + Vector3.Scale(box.size * .5f, new Vector3((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1));
-                    extent = Mathf.Max(extent, Mathf.Abs(matrix.MultiplyPoint3x4(point).x));
-                }
+                prepared = running = false;
+                Debug.LogError("Moving obstacle no longer fits its planned corridor passage.", this);
+                return;
             }
-
-            float limit = Mathf.Max(0f, corridorHalfWidth - extent - .02f);
-            for (int i = 0; i < route.Length; i++)
-                route[i].x = Mathf.Clamp(localHomePosition.x + route[i].x, -limit, limit) - localHomePosition.x;
             routeLength = 0f;
             for (int i = 1; i < route.Length; i++)
                 routeLength += Vector3.Distance(route[i - 1], route[i]);

@@ -10,12 +10,14 @@ namespace EndlessRollball.Scenery
         [Header("Identity")]
         [SerializeField]
         private EnvironmentTheme theme;
-        [Header("24 m scenery prefabs")]
+        [Header("Theme-specific obstacles")]
         [SerializeField]
-        public List<GameObject> sceneryPrefabs = new List<GameObject>();
+        private ThemeObstacleLibrary obstacleLibrary;
+        public ThemeObstacleLibrary ObstacleLibrary => obstacleLibrary;
+        [Header("On-demand runtime scenery")]
+        [SerializeField]
+        public string sceneryResourcePath;
         [Header("Presentation")]
-        [SerializeField]
-        public Material skyboxMaterial;
         [SerializeField]
         private Color ambientLight = new Color(0.5f, 0.5f, 0.5f);
         [SerializeField]
@@ -42,8 +44,6 @@ namespace EndlessRollball.Scenery
         }
 
         public EnvironmentTheme Theme => theme;
-        public GameObject[] SceneryPrefabs => sceneryPrefabs.ToArray();
-        public Material SkyboxMaterial => skyboxMaterial;
         public Color AmbientLight => ambientLight;
         public bool FogEnabled => fogEnabled;
         public Color FogColor => fogColor;

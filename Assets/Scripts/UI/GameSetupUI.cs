@@ -108,7 +108,8 @@ public sealed class GameSetupUI : MonoBehaviour
 
         isLoading = true;
         Time.timeScale = 1f;
+        GameSessionSettings.MarkGameplayLoadRequested();
         Debug.Log($"Starting {GameSessionSettings.SelectedMode} / " + $"{GameSessionSettings.TrackDifficulty}");
-        SceneManager.LoadSceneAsync("GameplayScene");
+        GameplayLoadingTransition.LoadGameplay();
     }
 }

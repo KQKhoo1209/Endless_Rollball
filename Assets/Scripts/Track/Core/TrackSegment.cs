@@ -5,6 +5,10 @@ namespace EndlessRollball.Track
     public sealed class TrackSegment : MonoBehaviour
     {
         public const float ContractLength = 24f;
+        [SerializeField] private bool compactJunction;
+        public bool IsCompactJunction => compactJunction;
+        public Vector3 EntryLocal => entryAnchor == null ? Vector3.zero : transform.InverseTransformPoint(entryAnchor.position);
+        public Vector3 ExitLocal => exitAnchor == null ? Vector3.zero : transform.InverseTransformPoint(exitAnchor.position);
         [SerializeField]
         private string segmentId = "segment";
         [SerializeField]
@@ -43,7 +47,7 @@ namespace EndlessRollball.Track
         public bool RequiredJump => requiredJump;
         public bool IsPresentationVisible => presentationRoot == null || presentationRoot.activeInHierarchy;
         public bool IsObstacle => kind is TrackSegmentKind.Gap or TrackSegmentKind.StaticObstacle or TrackSegmentKind.MovingObstacle;
-        public float Length => exitAnchor == null || entryAnchor == null ? 0f : exitAnchor.localPosition.z - entryAnchor.localPosition.z;
+        public float Length => exitAnchor == null || entryAnchor == null ? 0f : ExitLocal.z - EntryLocal.z;
 
         public bool Supports(DifficultyMode mode)
         {
@@ -91,6 +95,18 @@ namespace EndlessRollball.Track
                 return false;
             }
 
+            if (compactJunction)
+            {
+                if (GetComponent<JunctionTrafficController>() == null || requiredJump ||
+                    transform.localScale != Vector3.one ||
+                    !entryAnchor.IsChildOf(transform) || !exitAnchor.IsChildOf(transform) ||
+                    Mathf.Abs(EntryLocal.x) > .001f || Mathf.Abs(ExitLocal.x) > .001f ||
+                    Mathf.Abs(EntryLocal.y) > .001f || Mathf.Abs(ExitLocal.y) > .001f ||
+                    float.IsNaN(Length) || float.IsInfinity(Length) || Length < 1f || Length > ContractLength)
+                { reason = "Compact junction requires a straight positive span up to 24 m and unit root scale."; return false; }
+                reason = string.Empty;
+                return true;
+            }
             if (entryAnchor.localPosition.sqrMagnitude > 0.000001f)
             {
                 reason = "The entry anchor must be at local (0, 0, 0).";

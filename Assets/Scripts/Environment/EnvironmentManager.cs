@@ -49,9 +49,6 @@ namespace EndlessRollball.Scenery
         [Header("Endless journey")]
         [SerializeField, Min(4)]
         private int endlessSegmentsPerZone = 30;
-        [Tooltip("Provisional environment-only Normal-stage threshold. " + "Measured from player world Z=0, not spawn-ahead distance.")]
-        [SerializeField, Min(0f)]
-        private float endlessDungeonUnlockDistance = 500f;
         private readonly EnvironmentJourneyPlanner journey = new EnvironmentJourneyPlanner();
         private int visibleZone;
         public bool HasScheduledJourney => isActiveAndEnabled && sceneryReady && journey.HasScheduledJourney;
@@ -76,7 +73,7 @@ namespace EndlessRollball.Scenery
 #if UNITY_EDITOR
             if(useReviewThemeOverride) mode=GameMode.FastPaced;
 #endif
-            if (!journey.ConfigureJourney(mode, difficulty, seed, origin, CurrentTheme, standardEasyStreetSegments, standardThreeThemeSegmentsPerZone, endlessSegmentsPerZone, endlessDungeonUnlockDistance))
+            if (!journey.ConfigureJourney(mode, difficulty, seed, origin, CurrentTheme, standardEasyStreetSegments, standardThreeThemeSegmentsPerZone, endlessSegmentsPerZone))
             {
                 Debug.LogWarning(journey.Error, this);
                 return false;
@@ -94,13 +91,7 @@ namespace EndlessRollball.Scenery
         private bool HasValidTheme(EnvironmentTheme theme)
         {
             EnvironmentThemeConfig settings = GetSettings(theme);
-            if (settings == null || settings.sceneryPrefabs == null || settings.sceneryPrefabs.Count == 0)
-                return false;
-            var unique = new HashSet<GameObject>();
-            foreach (GameObject prefab in settings.sceneryPrefabs)
-                if (prefab == null || !unique.Add(prefab))
-                    return false;
-            return theme == EnvironmentTheme.Dungeon || settings.skyboxMaterial != null;
+            return settings != null && !string.IsNullOrWhiteSpace(settings.sceneryResourcePath);
         }
     }
 }

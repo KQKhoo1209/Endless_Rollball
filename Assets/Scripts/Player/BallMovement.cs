@@ -32,7 +32,7 @@ public sealed class BallMovement : MonoBehaviour
     private float minimumGroundNormal = 0.55f;
     [SerializeField, Min(0f)]
     private float jumpCooldown = 0.25f;
-    private RoadCorridor corridor = new RoadCorridor(9f);
+    private RoadCorridor corridor = new RoadCorridor(6f);
     private SphereCollider sphereCollider;
     public RoadCorridor Corridor => corridor;
     public float SphereRadius => sphereCollider == null ? .5f : sphereCollider.radius * Mathf.Max(Mathf.Abs(sphereCollider.transform.lossyScale.x), Mathf.Abs(sphereCollider.transform.lossyScale.y), Mathf.Abs(sphereCollider.transform.lossyScale.z));
