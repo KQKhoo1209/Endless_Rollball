@@ -548,53 +548,13 @@ MonoBehaviour:
   activeRoot: {fileID: 1034662097}
   poolRoot: {fileID: 24566427}
   taskTracker: {fileID: 467182657}
-  fixedPositionPrefabs:
-  - {fileID: 1536863617768247873, guid: 7c09312aa4d68f948904bc690802566c, type: 3}
-  - {fileID: 4601364679052194154, guid: 8b906b95d5c015045aa6ab9559af7c5c, type: 3}
-  - {fileID: 522574564812264697, guid: 0a944873067dfcc4da1f8ce842281983, type: 3}
-  - {fileID: 508166092985897497, guid: 3e8f7736b4aa41b4cae46ea3176cd674, type: 3}
-  - {fileID: 5332625501694367796, guid: e941ce40081c3ac43aa9682cf86f530c, type: 3}
-  movingPrefabs:
-  - {fileID: 3753455465813204699, guid: 87c98ad29d501714c8a65f5189d605d6, type: 3}
-  - {fileID: 5924688323188174336, guid: d2c3781e185f71c449e7b710ebada7b4, type: 3}
-  - {fileID: 6714134379508499110, guid: 02c3ae40543e052448d68ad2e3eddeea, type: 3}
-  - {fileID: 7465395553364355520, guid: 86981fe8fff445f4bad408947fb65487, type: 3}
-  - {fileID: 6628097433178051429, guid: c88de937fae686049a7f421a94f4ea51, type: 3}
+  fixedPositionPrefabs: []
+  movingPrefabs: []
   movingFraction: 0.35
-  jumpableOnlyPrefabs:
-  - {fileID: 5105491805779380589, guid: 72287c85b0aff674f9889d5c78406417, type: 3}
-  - {fileID: 3594504724626246446, guid: a3f273e90924dce46ab18c117bec5b38, type: 3}
-  - {fileID: 8592280826870933214, guid: 5e1dc16c8ef32264ab757988247e53b0, type: 3}
-  - {fileID: 6067087425205181381, guid: 800c5f103acd271409ef34fee45f3f57, type: 3}
-  - {fileID: 7001864171602191173, guid: f603d1b43e11d9b469b6d7178c3fa315, type: 3}
-  - {fileID: 1305528837668671700, guid: 0a053e88cec660d4f9fa1ccdea9f52f3, type: 3}
+  jumpableOnlyPrefabs: []
   jumpFraction: 0.25
   gapShareWithinJump: 0.5
-  combinationPatterns:
-  - {fileID: 11400000, guid: f884816938b84b4a932414dd15dc7200, type: 2}
-  - {fileID: 11400000, guid: 43527c11026542438476bbb52dd8553a, type: 2}
-  - {fileID: 11400000, guid: 4e166d656bab43ef90abc38686ee6071, type: 2}
-  - {fileID: 11400000, guid: 9321fa0646764b169678cdbcf7727095, type: 2}
-  - {fileID: 11400000, guid: d78809466d9d43b397d68d126df9ee5c, type: 2}
-  - {fileID: 11400000, guid: 329ec38e14c54791af014d3285edf461, type: 2}
-  - {fileID: 11400000, guid: ba62340fda064958afeb1eefa046a205, type: 2}
-  - {fileID: 11400000, guid: 5aa71d791fed4ea4843982ece5b40d26, type: 2}
-  - {fileID: 11400000, guid: ab6e93b2233d4368bdd3175f5f5305da, type: 2}
-  - {fileID: 11400000, guid: c552876459b945ddb14b1caa23a2c4fb, type: 2}
-  - {fileID: 11400000, guid: 80755c5a4a79433d943f38db55c71550, type: 2}
-  - {fileID: 11400000, guid: 10edff77cce142479a61a7f4152fe460, type: 2}
-  - {fileID: 11400000, guid: 541cff801b8b4ed4b8c51b9154bf715f, type: 2}
-  - {fileID: 11400000, guid: 27c66b28ed0e443dabed71e852e413df, type: 2}
-  - {fileID: 11400000, guid: 399f2c643baa4ca0ba1fdab52acc07f9, type: 2}
-  - {fileID: 11400000, guid: db42b85bb69a416b858601b7dc7a4837, type: 2}
-  - {fileID: 11400000, guid: 07d49a282eab469eb4ca9cbd9f53271e, type: 2}
-  - {fileID: 11400000, guid: 62594b6554c2415b8f8c7090851dc76f, type: 2}
-  - {fileID: 11400000, guid: 51b1bd8816f14c649526a674acd7eafe, type: 2}
-  - {fileID: 11400000, guid: 0d8c2577b31f4bef8ae4098173e7ea24, type: 2}
-  - {fileID: 11400000, guid: 5854b9eff25e462ca89d9df3d334be03, type: 2}
-  - {fileID: 11400000, guid: e92f3fde6dbb4b498324d601781bd489, type: 2}
-  - {fileID: 11400000, guid: 326fae7daf7d43938d583cd36cee7f7e, type: 2}
-  - {fileID: 11400000, guid: 98d0b676a896431993633d2bbe75f481, type: 2}
+  combinationPatterns: []
   ballMovement: {fileID: 2114248219}
   maxInactivePerPrefab: 2
   poolStatistics: []
@@ -1372,6 +1332,7 @@ MonoBehaviour:
   aheadDistance: 144
   recycleBehindDistance: 24
   safeStartingSegments: 2
+  logLoadingTimings: 0
 --- !u!114 &467182655
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1422,6 +1383,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.SessionTaskTracker
   ballMovement: {fileID: 2114248219}
   runController: {fileID: 467182653}
+  logFailedTasks: 0
 --- !u!1 &467599491
 GameObject:
   m_ObjectHideFlags: 0
@@ -4827,6 +4789,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4823a2e8826d42c4fbf1f90fb553f976, type: 3}
   m_Name: 
   m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Scenery.EnvironmentManager
+  themePrefetchSeconds: 60
   maxInactiveSceneryPerPrefab: 2
   sceneryPoolStatistics: []
   useReviewThemeOverride: 0
@@ -4849,7 +4812,6 @@ MonoBehaviour:
   standardEasyStreetSegments: 30
   standardThreeThemeSegmentsPerZone: 30
   endlessSegmentsPerZone: 30
-  endlessDungeonUnlockDistance: 500
 --- !u!1 &1691719968
 GameObject:
   m_ObjectHideFlags: 0
