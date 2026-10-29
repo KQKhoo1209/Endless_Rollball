@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28798282f63d58e468f03d43cf8c992f, type: 3}
+  m_Name: Street_ObstacleLibrary
+  m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.ThemeObstacleLibrary
+  fixedFamilies:
+  - familyId: Street.ParkedVehicles
+    variants:
+    - {fileID: 4511566034869402701, guid: 72daca79c891e55429fd294f872069bf, type: 3}
+    - {fileID: 4589044227803749245, guid: 2c3ea5966e4367242bf9a5d2ffa89b9f, type: 3}
+    - {fileID: 4792332129400670336, guid: fc518339d4a5d7f41beccfbf94627151, type: 3}
+    - {fileID: 1206585714897754096, guid: b4986508f00a904449eb5432a014d2f5, type: 3}
+    - {fileID: 4122587507030053846, guid: 83722241994286540ac32988c5cdcdd5, type: 3}
+    - {fileID: 3977732342724302338, guid: 955dcb6bd0836844d85980adc57c6839, type: 3}
+    - {fileID: 3594154011408313035, guid: 32e56e4ce3721ba4cb86c6d3b6629cc0, type: 3}
+    - {fileID: 3543771124974714179, guid: e603e0cb67330e54499b0606ea06b54d, type: 3}
+    - {fileID: 3780270043013525409, guid: f821d7c6c2f852d45a55843e6d4c9f76, type: 3}
+    - {fileID: 5909003911087588214, guid: 1e51a58b05a4a854d836977fe986c59c, type: 3}
+    - {fileID: 1075703079999812303, guid: 83612ee362c69f54bafba72f1e9520e6, type: 3}
+    - {fileID: 8957861670056534490, guid: 97c997d84742fe547b80e1a24dfe2df7, type: 3}
+    - {fileID: 306871912464007082, guid: 380577b5362a77a41bfcf1d11d516ed6, type: 3}
+    - {fileID: 843150737983431966, guid: faf9e9abed6663e4cb2ba060f84f1253, type: 3}
+    - {fileID: 354295037303174355, guid: e7424ed97bcbbf44d969b09d3c9a3de9, type: 3}
+  movingFamilies: []
+  jumpFamilies: []
+  roadworksTracks:
+  - {fileID: -3664244990731639971, guid: 9c4bfb74921d20846802d6c600517345, type: 3}
+  - {fileID: 8459028779137749866, guid: 8cb026aa64a87e24194db41d78bf1a3c, type: 3}
+  combinationPatterns: []
+  combinedEncounters:
+  - {fileID: -92994325713340798, guid: 74a83d2e7146f174ab279e09f8c9d0b0, type: 3}
+  - {fileID: 8308428035105153655, guid: 4ee46756791823f4c9d1e9b94f4a57f5, type: 3}
+  junctionTracks:
+  - {fileID: 357620831821688348, guid: 202c820e640df334c86149cae7ad3904, type: 3}
+  roadsideStops:
+  - {fileID: 900001, guid: 0628688bb18d4c12a8dcc4fb4751f3ea, type: 3}
+  - {fileID: 900001, guid: c2b74ba3041a475cb228da51d86d9abe, type: 3}
+  longitudinalTrafficTracks:
+  - {fileID: 900001, guid: 60a515da0fd2443189a455196b4ec751, type: 3}
+  - {fileID: 900001, guid: e86c5fcd116645d0881001f5e5313274, type: 3}
+  useCityPacing: 1
+  cityPacing:
+    minimumFamilyAppearances: 3
+    easySeconds: {x: 3.5, y: 4.25}
+    normalSeconds: {x: 2.5, y: 3.25}
+    hardSeconds: {x: 2.1, y: 2.6}
+    breathingSeconds: 0.75

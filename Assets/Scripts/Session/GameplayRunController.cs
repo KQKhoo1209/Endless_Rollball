@@ -20,7 +20,8 @@ namespace EndlessRollball.Track
         Ending,
         Results,
         SetupError,
-        Recovering
+        Recovering,
+        Streaming
     }
 
     // Temporary in-memory end data, NOT the persisted Chapter 4 SessionSummary.
@@ -141,7 +142,8 @@ namespace EndlessRollball.Track
             }
 
             sessionUI.HidePanels();
-            if (!initialRunStarted && trackGenerator.IsRunInitialized)
+            if (!initialRunStarted) ballMovement.StopMotionForCompletion();
+            if (!initialRunStarted && trackGenerator.IsRunPrepared)
                 HandleRunPrepared();
         }
 
@@ -156,7 +158,7 @@ namespace EndlessRollball.Track
 
             if (Keyboard.current?.escapeKey.wasPressedThisFrame ?? false)
             {
-                if (State == SessionFlowState.Running)
+                if (State == SessionFlowState.Running || State == SessionFlowState.Streaming)
                     PauseSession();
                 else if (State == SessionFlowState.Paused)
                     ResumeSession();
@@ -180,12 +182,35 @@ namespace EndlessRollball.Track
                 ballMovement.DiscardBufferedInput();
         }
 
+        private bool loadingHold;
+        private void HandleStreamingHold(bool hold)
+        {
+            loadingHold = hold;
+            if (hold && State == SessionFlowState.Running)
+            {
+                CaptureActiveInterval();
+                State = SessionFlowState.Streaming;
+                HoldClockAndCamera();
+            }
+            else if (!hold && State == SessionFlowState.Streaming)
+            {
+                ReleaseClockAndCamera();
+                ballMovement.DiscardBufferedInput();
+                discardInputThroughFrame = Time.frameCount;
+                activeIntervalStart = Time.timeAsDouble;
+                State = SessionFlowState.Running;
+            }
+        }
+
         public void PauseSession()
         {
-            if (State != SessionFlowState.Running)
+            if (State != SessionFlowState.Running && State != SessionFlowState.Streaming)
                 return;
-            taskTracker.ObservePlayer();
-            CaptureActiveInterval();
+            if (State == SessionFlowState.Running)
+            {
+                taskTracker.ObservePlayer();
+                CaptureActiveInterval();
+            }
             State = SessionFlowState.Paused;
             trackGenerator.SetGenerationPaused(true);
             HoldClockAndCamera();
@@ -202,9 +227,9 @@ namespace EndlessRollball.Track
             ballMovement.DiscardBufferedInput();
             discardInputThroughFrame = Time.frameCount;
             sessionUI.HidePanels();
-            ReleaseClockAndCamera();
+            if (!loadingHold) ReleaseClockAndCamera();
             activeIntervalStart = Time.timeAsDouble;
-            State = SessionFlowState.Running;
+            State = loadingHold ? SessionFlowState.Streaming : SessionFlowState.Running;
             trackGenerator.SetGenerationPaused(false);
         // No ResumeMotion, ResetMotion, ResetRun or scene reload here.
         }
@@ -215,33 +240,57 @@ namespace EndlessRollball.Track
                 EndSessionOnce(SessionOutcome.Stopped);
         }
 
+        public void ReportEncounterFall()
+        {
+            if(State == SessionFlowState.Running) HandleFailure(SessionOutcome.Fall);
+        }
+
         public void ReportObstacleCollision(Collider relatedHazard = null)
         {
             if (State == SessionFlowState.Running)
                 HandleFailure(SessionOutcome.Collision, relatedHazard);
         }
 
+        public void ReportCargoContact(Collider cargo)
+        {
+            ReportNavigationContact(cargo);
+        }
+
+        public void ReportNavigationContact(Collider hazard)
+        {
+            if (State == SessionFlowState.Running)
+                taskTracker.RecordNavigationContact(hazard);
+        }
+
         private void HandleFailure(SessionOutcome outcome, Collider relatedHazard = null)
         {
             if (State != SessionFlowState.Running)
                 return;
+
             if (!trackGenerator.HasFiniteRoute)
             {
-                EndSessionOnce(outcome, relatedHazard); // Endless remains terminal.
+                EndSessionOnce(outcome, relatedHazard);
                 return;
             }
 
             CaptureActiveInterval();
             State = SessionFlowState.Recovering;
             StopRespawnFlash();
+
             trackGenerator.SetGenerationPaused(true);
             HoldClockAndCamera();
             ballMovement.StopMotionForCompletion();
-            recoveryMinimumZ = taskTracker.RecordFailure(outcome, relatedHazard);
+
+            recoveryMinimumZ =
+                taskTracker.RecordFailure(outcome, relatedHazard);
+
             recoveryStartedAt = Time.unscaledTimeAsDouble;
-            recoveryReadyAt = recoveryStartedAt + Mathf.Max(0f, respawnDelaySeconds);
+            recoveryReadyAt =
+                recoveryStartedAt + Mathf.Max(0f, respawnDelaySeconds);
+
             if (ballShatter == null)
                 ballShatter = new BallShatterEffect();
+
             ballShatter.Play(ballMovement);
         }
 
@@ -460,12 +509,14 @@ namespace EndlessRollball.Track
 
             if (ballMovement != null)
                 ballMovement.StopMotionForCompletion();
+            if (gameplayCameraFollow is CameraFollow follow)
+                follow.SnapToTarget();
             HideFinishGate();
         }
 
         private void HandleRunPrepared()
         {
-            if (!started || !isActiveAndEnabled || trackGenerator == null || !trackGenerator.IsRunInitialized || State == SessionFlowState.SetupError)
+            if (!started || !isActiveAndEnabled || trackGenerator == null || !trackGenerator.IsRunPrepared || State == SessionFlowState.SetupError)
                 return;
             if (initialRunStarted)
             {
@@ -566,6 +617,8 @@ namespace EndlessRollball.Track
                 return;
             subscribedGenerator.RunResetting += HandleRunResetting;
             subscribedGenerator.RunPrepared += HandleRunPrepared;
+            subscribedGenerator.RunSetupFailed += FailSetup;
+            subscribedGenerator.StreamingHoldChanged += HandleStreamingHold;
         }
 
         private void UnsubscribeFromGenerator()
@@ -574,6 +627,8 @@ namespace EndlessRollball.Track
             {
                 subscribedGenerator.RunResetting -= HandleRunResetting;
                 subscribedGenerator.RunPrepared -= HandleRunPrepared;
+                subscribedGenerator.RunSetupFailed -= FailSetup;
+                subscribedGenerator.StreamingHoldChanged -= HandleStreamingHold;
             }
 
             subscribedGenerator = null;
@@ -589,7 +644,7 @@ namespace EndlessRollball.Track
             UnsubscribeFromGenerator();
             if (State == SessionFlowState.Running)
                 CaptureActiveInterval();
-            if (State == SessionFlowState.Running || State == SessionFlowState.Paused || State == SessionFlowState.Recovering)
+            if (State == SessionFlowState.Running || State == SessionFlowState.Paused || State == SessionFlowState.Recovering || State == SessionFlowState.Streaming)
                 State = SessionFlowState.SetupError; // Re-enable never revives a run.
             HideFinishGate();
             if (trackGenerator != null)

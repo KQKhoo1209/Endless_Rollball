@@ -80,7 +80,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 2, y: 2, z: 2}
+  m_LocalScale: {x: 1.25, y: 1.25, z: 1.25}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 430721366783769463}
@@ -160,13 +160,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78e60bb20b65495781fd158e7e78b01b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.SideToSideObstacleMotion
-  halfTravel: 2.5706874
+  halfTravel: 2.5706873
   speed: 1.7
   startPhase: 0.25
   localHomePosition: {x: 0, y: 0, z: 0}
   localWaypointOffsets:
-  - {x: -2.5928387, y: 0, z: 0}
-  - {x: 2.5706874, y: 0, z: 0}
+  - {x: -2.5928388, y: 0, z: 0}
+  - {x: 2.5706873, y: 0, z: 0}
 --- !u!1 &6714134379508499110
 GameObject:
   m_ObjectHideFlags: 0

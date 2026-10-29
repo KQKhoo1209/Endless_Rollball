@@ -28,6 +28,9 @@ namespace EndlessRollball.Track
                     continue;
                 Vector3 start = floor.transform.TransformPoint(floor.center + new Vector3(0f, floor.size.y * .5f, -floor.size.z * .5f));
                 Vector3 end = floor.transform.TransformPoint(floor.center + new Vector3(0f, floor.size.y * .5f, floor.size.z * .5f));
+                start.z = Mathf.Max(start.z, track.EntryAnchor.position.z);
+                end.z = Mathf.Min(end.z, track.ExitAnchor.position.z);
+                if (end.z <= start.z) continue;
                 for (int side = -1; side <= 1; side += 2)
                 {
                     if (used == lines.Count)

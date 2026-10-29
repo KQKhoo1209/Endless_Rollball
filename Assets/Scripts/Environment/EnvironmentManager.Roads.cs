@@ -115,6 +115,25 @@ namespace EndlessRollball.Scenery
             return true;
         }
 
+        // Resolve using the generated road, not the player's current theme.
+        internal ThemeObstacleLibrary GetObstacleLibraryForRoad(
+            TrackSegment clearRoad)
+        {
+            if (clearRoad == null)
+                return null;
+
+            if (street != null && street.roadTrackPrefab == clearRoad)
+                return street.ObstacleLibrary;
+
+            if (beach != null && beach.roadTrackPrefab == clearRoad)
+                return beach.ObstacleLibrary;
+
+            if (dungeon != null && dungeon.roadTrackPrefab == clearRoad)
+                return dungeon.ObstacleLibrary;
+
+            return null;
+        }
+
         // The generator has already resolved the scheduled theme's clear road.
         // Map that exact prefab, never CurrentTheme (which follows the player).
         internal TrackSegment GetGapTrackForRoad(TrackSegment clearRoad, DifficultySnapshot difficulty)
@@ -126,6 +145,60 @@ namespace EndlessRollball.Scenery
             if (dungeon != null && dungeon.roadTrackPrefab == clearRoad)
                 return dungeon.GapFor(difficulty);
             return null;
+        }
+
+        internal void RecordRouteEntry(int index, float entry, float exit) => journey.RecordEntry(index, entry, exit);
+
+        internal int EncounterZoneAt(int index) => GetScenerySlot(index).ZoneId;
+
+        internal bool CanUseJunctionAt(int index)
+        {
+            return CanUseCityTrafficAt(index) &&
+                TryGetScenery(EnvironmentTheme.Street, out var set) && set.junctionScenery != null;
+        }
+
+        internal bool CanUseCityTrafficAt(int index)
+        {
+            if (!sceneryReady || index < 1)
+                return false;
+            for (int offset = -1; offset <= 1; offset++)
+            {
+                int candidate = index + offset;
+                var slot = GetScenerySlot(candidate);
+                if (slot.Theme != EnvironmentTheme.Street || slot.IsTunnel || RequiresClearTrack(candidate))
+                    return false;
+            }
+            return true;
+        }
+
+        internal bool CanUseBeachBarrierAt(int index)
+        {
+            if (!sceneryReady || index < 4) return false;
+            for(int offset=0; offset<=1; offset++)
+            {
+                int candidate=index+offset;
+                var slot=GetScenerySlot(candidate);
+                if(slot.Theme != EnvironmentTheme.Water || slot.IsTunnel || RequiresClearTrack(candidate)) return false;
+            }
+            return true;
+        }
+
+        internal bool CanUseRoadsideStopAt(int index) => CanUseCityTrafficAt(index);
+
+        internal bool IsStreetRoadSegment(int index)
+        {
+            if (!sceneryReady || index < 0) return false;
+            var slot = GetScenerySlot(index);
+            return slot.Theme == EnvironmentTheme.Street && !slot.IsTunnel;
+        }
+
+        internal bool IsCityTrafficApproach(int index)
+        {
+            if (!CanUseCityTrafficAt(index) || !LongitudinalTrafficEncounter.IsApproachSegment(index))
+                return false;
+            ThemeObstacleLibrary library = street != null ? street.ObstacleLibrary : null;
+            return library != null && library.LongitudinalTrafficTracks != null &&
+                System.Array.Exists(library.LongitudinalTrafficTracks, candidate => candidate != null);
         }
 
         private static bool IsClearRoad(TrackSegment road)

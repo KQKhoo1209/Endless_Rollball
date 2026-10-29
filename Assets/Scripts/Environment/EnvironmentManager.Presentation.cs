@@ -39,16 +39,7 @@ namespace EndlessRollball.Scenery
             if (useReviewThemeOverride)
                 return reviewTheme;
 #endif
-            if (mode == GameMode.Standard && difficulty == DifficultyMode.Easy)
-            {
-                return EnvironmentTheme.Street;
-            }
-
-            bool useEasyPool = mode == GameMode.Endless || difficulty == DifficultyMode.Easy || difficulty == DifficultyMode.Endless;
-            int themeCount = useEasyPool ? 2 : 3;
-            // Separate from both track selection and scenery shuffling.
-            var themeRandom = new System.Random(unchecked(trackSeed ^ 0x2468ACE));
-            return (EnvironmentTheme)themeRandom.Next(themeCount);
+            return EnvironmentJourneyPlanner.SelectStartingTheme(mode, difficulty, trackSeed);
         }
 
         private void CapturePresentation()
@@ -76,7 +67,8 @@ namespace EndlessRollball.Scenery
         private void ApplyPresentation()
         {
             bool isDungeon = CurrentTheme == EnvironmentTheme.Dungeon;
-            RenderSettings.skybox = isDungeon ? null : currentSettings.skyboxMaterial;
+            TryGetScenery(CurrentTheme, out EnvironmentScenerySet scenery);
+            RenderSettings.skybox = isDungeon ? null : scenery.skybox;
             RenderSettings.ambientMode = AmbientMode.Flat;
             RenderSettings.ambientLight = currentSettings.ambientColor;
             RenderSettings.ambientIntensity = 1f;
@@ -107,7 +99,7 @@ namespace EndlessRollball.Scenery
                 Debug.LogWarning("EnvironmentManager has no gameplay camera reference.", this);
             }
 
-            if (!isDungeon && currentSettings.skyboxMaterial == null)
+            if (!isDungeon && (scenery == null || scenery.skybox == null))
             {
                 Debug.LogWarning($"No skybox material is assigned for {CurrentTheme}.", this);
             }
@@ -223,7 +215,7 @@ namespace EndlessRollball.Scenery
             journeyExitVeil.SetActive(true);
         }
 
-        public void UpdateJourneyPresentation(float playerZ)
+        public void UpdateJourneyPresentation(float playerZ, bool horizonReady = true)
         {
             if (!HasScheduledJourney || transitionRequests.Count == 0 || gameplayCamera == null || journeyFadeGroup == null)
                 return;
@@ -270,6 +262,8 @@ namespace EndlessRollball.Scenery
                     journeyPhaseElapsed += Time.deltaTime;
                     if (journeyPhaseElapsed < Mathf.Max(0f, journeyCoveredHold))
                         return;
+                    StreamingHoldRequired = !horizonReady || !TryGetScenery(request.DestinationTheme, out _);
+                    if (StreamingHoldRequired) return;
                     CurrentTheme = request.DestinationTheme;
                     currentSettings = GetSettings(CurrentTheme);
                     ApplyPresentation();

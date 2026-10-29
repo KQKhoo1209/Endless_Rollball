@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e37a170de7054025b967ace074937659, type: 3}
+  m_Name: Street
+  m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Scenery.EnvironmentScenerySet
+  prefabs:
+  - {fileID: 7122103181959618104, guid: 04d9495da0edc8541a99985ba52e2aaa, type: 3}
+  - {fileID: 6572234854005306537, guid: 9cc1df5d68e24b641bef8920d927f08d, type: 3}
+  - {fileID: 3457528187535892288, guid: 6cfcc425b3d5ddc4e9dd97e0854e56f5, type: 3}
+  - {fileID: 7051288419779948265, guid: 05302d32964c9ef448a16c7f081c46d1, type: 3}
+  - {fileID: 5952724628051784614, guid: 7dcae10013967c349ba2110dfdaca953, type: 3}
+  skybox: {fileID: 2100000, guid: 99814a37db5141647a8306292fe651f7, type: 2}
+  junctionScenery: {fileID: 100100, guid: baf1c5e5c3f14e129b9fb6f785b49c20, type: 3}

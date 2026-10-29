@@ -8,9 +8,14 @@ namespace EndlessRollball.Scenery
 {
     internal sealed class EnvironmentJourneyPlanner
     {
+        private readonly SortedDictionary<int, float> physicalEntries = new SortedDictionary<int, float>();
+        internal void RecordEntry(int index, float entry, float exit)
+        {
+            physicalEntries[index] = entry;
+            physicalEntries[index + 1] = exit;
+        }
         private EnvironmentTheme CurrentTheme;
         private int standardEasyStreetSegments, standardThreeThemeSegmentsPerZone, endlessSegmentsPerZone;
-        private float endlessDungeonUnlockDistance;
         public string Error { get; private set; }
 
         private enum JourneyKind
@@ -38,17 +43,12 @@ namespace EndlessRollball.Scenery
         private JourneyKind journeyKind;
         private int streetSegmentsForRun;
         private int zoneSegmentsForRun;
-        private float dungeonUnlockForRun;
         private float journeyOriginZ;
         private string journeyIdentifierForRun;
         private System.Random journeyRandom;
         private readonly List<EnvironmentTheme> standardOrder = new List<EnvironmentTheme>();
         private readonly Dictionary<int, EnvironmentTheme> endlessThemes = new Dictionary<int, EnvironmentTheme>();
-        private readonly List<EnvironmentTheme> endlessThemeBag = new List<EnvironmentTheme>();
-        private int endlessThemeBagIndex;
-        private int endlessPoolSize;
         private int lastPlannedEndlessZone;
-        private EnvironmentTheme lastPlannedEndlessTheme;
         public bool HasScheduledJourney => journeyKind != JourneyKind.None;
         // With valid scenery configuration, connectors are owned by
         // the schedule. Review/Fast-Paced instead have no connectors.
@@ -96,14 +96,38 @@ namespace EndlessRollball.Scenery
             return segmentIndex > 0 && segmentIndex % (zoneSegmentsForRun + 1) == 0;
         }
 
-        public bool ConfigureJourney(GameMode mode, DifficultyMode difficulty, int seed, float trackOriginZ, EnvironmentTheme startingTheme, int easySegments, int standardSegments, int endlessSegments, float unlockDistance)
+        internal static EnvironmentTheme SelectStartingTheme(GameMode mode, DifficultyMode difficulty, int seed)
+        {
+            if (mode == GameMode.Standard)
+                return difficulty == DifficultyMode.Hard ? EnvironmentTheme.Dungeon : EnvironmentTheme.Street;
+            var random = new System.Random(unchecked(seed ^ 0x2468ACE));
+            return mode == GameMode.Endless ? (EnvironmentTheme)random.Next(3) :
+                FastPacedThemeAtRoll(difficulty, random.Next(100));
+        }
+
+        internal static EnvironmentTheme FastPacedThemeAtRoll(DifficultyMode difficulty, int roll)
+        {
+            if (roll < 0 || roll >= 100) throw new ArgumentOutOfRangeException(nameof(roll));
+            switch (difficulty)
+            {
+                case DifficultyMode.Easy:
+                    return roll < 65 ? EnvironmentTheme.Street : EnvironmentTheme.Water;
+                case DifficultyMode.Normal:
+                    return roll < 45 ? EnvironmentTheme.Water : roll < 75 ? EnvironmentTheme.Street : EnvironmentTheme.Dungeon;
+                case DifficultyMode.Hard:
+                    return roll < 45 ? EnvironmentTheme.Dungeon : roll < 75 ? EnvironmentTheme.Water : EnvironmentTheme.Street;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(difficulty));
+            }
+        }
+
+        public bool ConfigureJourney(GameMode mode, DifficultyMode difficulty, int seed, float trackOriginZ, EnvironmentTheme startingTheme, int easySegments, int standardSegments, int endlessSegments)
         {
             ResetJourneyPlan();
             CurrentTheme = startingTheme;
             standardEasyStreetSegments = easySegments;
             standardThreeThemeSegmentsPerZone = standardSegments;
             endlessSegmentsPerZone = endlessSegments;
-            endlessDungeonUnlockDistance = unlockDistance;
             journeyOriginZ = trackOriginZ;
             journeyRandom = new System.Random(unchecked(seed ^ 0x5EED123));
             if (float.IsNaN(trackOriginZ) || float.IsInfinity(trackOriginZ))
@@ -112,7 +136,7 @@ namespace EndlessRollball.Scenery
                 return JourneyWarning("Endless mode and the Endless difficulty profile " + "must be selected together.");
             if (mode == GameMode.FastPaced)
             {
-                journeyIdentifierForRun = $"fastpaced-env5d-v1-no-tunnel-z{Number(trackOriginZ)}";
+                journeyIdentifierForRun = $"fastpaced-env-v2-weighted-no-tunnel-z{Number(trackOriginZ)}";
                 return true;
             }
 
@@ -124,7 +148,7 @@ namespace EndlessRollball.Scenery
                 streetSegmentsForRun = standardEasyStreetSegments;
                 standardOrder.Add(EnvironmentTheme.Street);
                 standardOrder.Add(EnvironmentTheme.Water);
-                journeyIdentifierForRun = $"standard-easy-env5d-v1-s{streetSegmentsForRun}" + $"-t1-r1-z{Number(trackOriginZ)}";
+                journeyIdentifierForRun = $"standard-easy-env-v2-s{streetSegmentsForRun}" + $"-t1-r1-z{Number(trackOriginZ)}";
             }
             else if (mode == GameMode.Standard)
             {
@@ -132,45 +156,22 @@ namespace EndlessRollball.Scenery
                     return JourneyWarning("Normal/Hard zones need at least four slots.");
                 journeyKind = JourneyKind.StandardThree;
                 zoneSegmentsForRun = standardThreeThemeSegmentsPerZone;
-                standardOrder.Add(CurrentTheme);
-                foreach (EnvironmentTheme theme in new[]
-                {
-                    EnvironmentTheme.Street,
-                    EnvironmentTheme.Water,
-                    EnvironmentTheme.Dungeon
-                }
+                standardOrder.AddRange(difficulty == DifficultyMode.Hard
+                    ? new[] { EnvironmentTheme.Dungeon, EnvironmentTheme.Water, EnvironmentTheme.Street }
+                    : new[] { EnvironmentTheme.Street, EnvironmentTheme.Water, EnvironmentTheme.Dungeon });
 
-                )
-                {
-                    if (theme != CurrentTheme)
-                        standardOrder.Add(theme);
-                }
-
-                // StartingTheme already selected the first theme.
-                if (journeyRandom.Next(2) == 1)
-                {
-                    EnvironmentTheme temporary = standardOrder[1];
-                    standardOrder[1] = standardOrder[2];
-                    standardOrder[2] = temporary;
-                }
-
-                journeyIdentifierForRun = $"standard-three-env5d-v1-n{zoneSegmentsForRun}" + $"-o{(int)standardOrder[0]}" + $"{(int)standardOrder[1]}{(int)standardOrder[2]}" + $"-t2-r1-z{Number(trackOriginZ)}";
+                journeyIdentifierForRun = $"standard-three-env-v2-fixed-n{zoneSegmentsForRun}" + $"-o{(int)standardOrder[0]}" + $"{(int)standardOrder[1]}{(int)standardOrder[2]}" + $"-t2-r1-z{Number(trackOriginZ)}";
             }
             else if (mode == GameMode.Endless)
             {
-                if (endlessSegmentsPerZone < 4 || float.IsNaN(endlessDungeonUnlockDistance) || float.IsInfinity(endlessDungeonUnlockDistance) || endlessDungeonUnlockDistance < 0f)
-                    return JourneyWarning("Endless needs at least four slots per zone " + "and a finite non-negative unlock distance.");
+                if (endlessSegmentsPerZone < 4)
+                    return JourneyWarning("Endless needs at least four slots per zone.");
                 journeyKind = JourneyKind.Endless;
                 zoneSegmentsForRun = endlessSegmentsPerZone;
-                dungeonUnlockForRun = endlessDungeonUnlockDistance;
                 endlessThemes.Add(0, CurrentTheme);
                 lastPlannedEndlessZone = 0;
-                lastPlannedEndlessTheme = CurrentTheme;
-                // Complete the initial two-theme cycle after its start.
-                endlessPoolSize = 2;
-                endlessThemeBag.Add(CurrentTheme == EnvironmentTheme.Street ? EnvironmentTheme.Water : EnvironmentTheme.Street);
-                endlessThemeBagIndex = 0;
-                journeyIdentifierForRun = $"endless-env5d-v1-n{zoneSegmentsForRun}" + $"-d{Number(dungeonUnlockForRun)}" + $"-initial2-r1-z{Number(trackOriginZ)}";
+                journeyIdentifierForRun = $"endless-env-v2-equal3-n{zoneSegmentsForRun}" +
+                    $"-r1-z{Number(trackOriginZ)}";
             }
             else
             {
@@ -178,6 +179,17 @@ namespace EndlessRollball.Scenery
             }
 
             return true;
+        }
+
+        internal int IndexAtWorldZ(float z)
+        {
+            int index = 0; float entry = journeyOriginZ;
+            foreach (var pair in physicalEntries)
+            {
+                if (pair.Value > z) break;
+                index = pair.Key; entry = pair.Value;
+            }
+            return index + Mathf.Max(0, Mathf.CeilToInt(z - entry));
         }
 
         internal ScenerySlot GetScenerySlot(int segmentIndex)
@@ -208,45 +220,15 @@ namespace EndlessRollball.Scenery
             while (lastPlannedEndlessZone < zone)
             {
                 int nextZone = lastPlannedEndlessZone + 1;
-                double entranceZ = journeyOriginZ + (double)nextZone * (zoneSegmentsForRun + 1) * TrackSegment.ContractLength;
-                int poolSize = nextZone >= 2 && entranceZ >= dungeonUnlockForRun ? 3 : 2;
-                if (poolSize != endlessPoolSize || endlessThemeBagIndex >= endlessThemeBag.Count)
-                    RefillEndlessThemeBag(poolSize);
-                EnvironmentTheme next = endlessThemeBag[endlessThemeBagIndex++];
+                // Independent equal draws: all three themes are eligible immediately.
+                EnvironmentTheme next = (EnvironmentTheme)journeyRandom.Next(3);
                 endlessThemes.Add(nextZone, next);
                 lastPlannedEndlessZone = nextZone;
-                lastPlannedEndlessTheme = next;
             }
 
             if (!endlessThemes.TryGetValue(zone, out EnvironmentTheme theme))
                 throw new InvalidOperationException("An old pruned zone was requested. Attach scheduled " + "tracks in forward spawn-index order.");
             return theme;
-        }
-
-        private void RefillEndlessThemeBag(int poolSize)
-        {
-            endlessPoolSize = poolSize;
-            endlessThemeBag.Clear();
-            endlessThemeBag.Add(EnvironmentTheme.Street);
-            endlessThemeBag.Add(EnvironmentTheme.Water);
-            if (poolSize == 3)
-                endlessThemeBag.Add(EnvironmentTheme.Dungeon);
-            for (int i = endlessThemeBag.Count - 1; i > 0; i--)
-            {
-                int other = journeyRandom.Next(i + 1);
-                EnvironmentTheme temporary = endlessThemeBag[i];
-                endlessThemeBag[i] = endlessThemeBag[other];
-                endlessThemeBag[other] = temporary;
-            }
-
-            if (endlessThemeBag[0] == lastPlannedEndlessTheme)
-            {
-                EnvironmentTheme temporary = endlessThemeBag[0];
-                endlessThemeBag[0] = endlessThemeBag[1];
-                endlessThemeBag[1] = temporary;
-            }
-
-            endlessThemeBagIndex = 0;
         }
 
         internal void PruneEndlessThemeHistory(int visibleZone)
@@ -273,17 +255,13 @@ namespace EndlessRollball.Scenery
             journeyKind = JourneyKind.None;
             streetSegmentsForRun = 0;
             zoneSegmentsForRun = 0;
-            dungeonUnlockForRun = 0f;
+            physicalEntries.Clear();
             journeyOriginZ = 0f;
             journeyIdentifierForRun = null;
             journeyRandom = null;
             standardOrder.Clear();
             endlessThemes.Clear();
-            endlessThemeBag.Clear();
-            endlessThemeBagIndex = 0;
-            endlessPoolSize = 0;
             lastPlannedEndlessZone = 0;
-            lastPlannedEndlessTheme = EnvironmentTheme.Street;
         }
     }
 }

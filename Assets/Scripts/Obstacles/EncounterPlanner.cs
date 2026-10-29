@@ -11,6 +11,14 @@ namespace EndlessRollball.Track
         private int lastSegment = -2, consecutive;
         public string LastFamily { get; private set; }
 
+        internal EncounterPlanner Copy() => (EncounterPlanner)MemberwiseClone();
+        internal void Restore(EncounterPlanner source)
+        {
+            previousEnd = source.previousEnd; previousExitX = source.previousExitX;
+            lastSegment = source.lastSegment; consecutive = source.consecutive;
+            LastFamily = source.LastFamily;
+        }
+
         public void Reset()
         {
             previousEnd = float.NegativeInfinity;

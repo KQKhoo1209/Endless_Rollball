@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a4a81eb4d274a509f58fb265fc4b240, type: 3}
+  m_Name: Hard_PillarSlalom_Right
+  m_EditorClassIdentifier: 
+  family: PillarSlalom
+  stages:
+  - centreZ: 4
+    passageX: -3.3
+    requiredJump: 0
+  - centreZ: 20
+    passageX: 3.3
+    requiredJump: 0
+  - centreZ: 36
+    passageX: -3.3
+    requiredJump: 0
+  gapStageIndex: 0
+  placements:
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: 3.675, y: 4}
+    requiredJump: 0
+    stageIndex: 0
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: 2.025, y: 4}
+    requiredJump: 0
+    stageIndex: 0
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: 0.375, y: 4}
+    requiredJump: 0
+    stageIndex: 0
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: -1.275, y: 4}
+    requiredJump: 0
+    stageIndex: 0
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: -3.675, y: 20}
+    requiredJump: 0
+    stageIndex: 1
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: -2.025, y: 20}
+    requiredJump: 0
+    stageIndex: 1
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: -0.375, y: 20}
+    requiredJump: 0
+    stageIndex: 1
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: 1.275, y: 20}
+    requiredJump: 0
+    stageIndex: 1
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: 3.675, y: 36}
+    requiredJump: 0
+    stageIndex: 2
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: 2.025, y: 36}
+    requiredJump: 0
+    stageIndex: 2
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: 0.375, y: 36}
+    requiredJump: 0
+    stageIndex: 2
+  - prefab: {fileID: 3367176017576320245, guid: f27a6014bf4ebbb488e0c40ea6686c66, type: 3}
+    centre: {x: -1.275, y: 36}
+    requiredJump: 0
+    stageIndex: 2
+  usesGap: 0
+  alternateSide: 0
+  exitCentreX: -3.3

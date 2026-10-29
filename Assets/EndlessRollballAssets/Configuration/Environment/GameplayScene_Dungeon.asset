@@ -13,16 +13,15 @@ MonoBehaviour:
   m_Name: GameplayScene_Dungeon
   m_EditorClassIdentifier: 
   theme: 2
-  sceneryPrefabs:
-  - {fileID: 8009890882721515432, guid: 16075c1027c3ea54aa63a3e861f39377, type: 3}
-  - {fileID: 2390926515210165720, guid: 9a41a111f607ac04391574a67a9723af, type: 3}
-  - {fileID: 4572868572752130997, guid: 1481b670bf8d3114882f1d5e15a375a8, type: 3}
-  - {fileID: 458480009732567902, guid: a29d0754bb8cc6b4e9b07802ccec852c, type: 3}
-  - {fileID: 6898557236644063870, guid: ed38eed949933924599aa9dbaa0d2051, type: 3}
-  skyboxMaterial: {fileID: 0}
+  obstacleLibrary: {fileID: 11400000, guid: dcdf74481a2e81748a84c2ff616eb340, type: 2}
+  sceneryResourcePath: EnvironmentScenery/Dungeon
   ambientLight: {r: 0.18039216, g: 0.2, b: 0.2509804, a: 1}
-  directionalLightIntensity: 0
+  fogEnabled: 0
+  fogColor: {r: 0.6, g: 0.7, b: 0.8, a: 1}
+  fogStart: 80
+  fogEnd: 180
   roadTrackPrefab: {fileID: 8683306687898440127, guid: 2d1231b283115a344b492a742866b292, type: 3}
   gapTrackPrefab: {fileID: 7682446981815038299, guid: 0062621098e342008cfd280a0e33b3c8, type: 3}
   normalGapTrackPrefab: {fileID: 7682446981815038299, guid: eef40fff3f0e40edb6ff89ed13957cba, type: 3}
   hardGapTrackPrefab: {fileID: 7682446981815038299, guid: 7dea73178ade48a9bdeb39bf31b0b54f, type: 3}
+  directionalLightIntensity: 0

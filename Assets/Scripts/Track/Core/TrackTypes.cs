@@ -61,7 +61,7 @@ namespace EndlessRollball.Track
 
     public readonly struct DifficultySnapshot
     {
-        public DifficultySnapshot(DifficultyMode mode, float forwardSpeed, float speedAdjustmentRange, float obstacleProbability, float movingObstacleSpeed, float progress01, float roadWidth = 9f, float recoverySeconds = 2f, int consecutiveLimit = 2, float combinationChance = 0f)
+        public DifficultySnapshot(DifficultyMode mode, float forwardSpeed, float speedAdjustmentRange, float obstacleProbability, float movingObstacleSpeed, float progress01, float roadWidth = 6f, float recoverySeconds = 2f, int consecutiveLimit = 2, float combinationChance = 0f)
         {
             Mode = mode;
             ForwardSpeed = Mathf.Max(0f, forwardSpeed);
