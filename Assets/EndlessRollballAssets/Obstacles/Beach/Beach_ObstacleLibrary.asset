@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28798282f63d58e468f03d43cf8c992f, type: 3}
+  m_Name: Beach_ObstacleLibrary
+  m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.ThemeObstacleLibrary
+  useCityPacing: 0
+  cityPacing:
+    minimumFamilyAppearances: 3
+    easySeconds: {x: 4, y: 5}
+    normalSeconds: {x: 3, y: 4}
+    hardSeconds: {x: 2.5, y: 3}
+    breathingSeconds: 1
+  fixedFamilies:
+  - familyId: Beach.FallenPalm
+    variants:
+    - {fileID: 3881148933556946188, guid: 9bfff68125da76e41af6b5006972fd69, type: 3}
+    - {fileID: 52568955272832106, guid: 9a2c74bf31356cd4bbf31fdbac0a8ce9, type: 3}
+  - familyId: Beach.WoodenFence
+    variants:
+    - {fileID: 6394361667203428842, guid: 2f7121fd926700747849d4551a3fd7ba, type: 3}
+  movingFamilies: []
+  jumpFamilies: []
+  roadworksTracks: []
+  junctionTracks: []
+  roadsideStops: []
+  longitudinalTrafficTracks: []
+  beachBarrierTracks:
+  - {fileID: 6401028695630476164, guid: bd25706a08843854c967932b6a25682a, type: 3}
+  - {fileID: 2345727127112216358, guid: bfa2df54d6236b249992e40bba8bb35b, type: 3}
+  combinationPatterns: []
+  combinedEncounters: []

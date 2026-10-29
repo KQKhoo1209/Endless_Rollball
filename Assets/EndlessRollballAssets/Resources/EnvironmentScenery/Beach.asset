@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e37a170de7054025b967ace074937659, type: 3}
+  m_Name: Beach
+  m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Scenery.EnvironmentScenerySet
+  prefabs:
+  - {fileID: 4614432233718230700, guid: 0cd6c6ee113b69549a025b57daffd212, type: 3}
+  - {fileID: 1684226458820792287, guid: 6a417fb99d938914da124b1fe4b1dc5e, type: 3}
+  - {fileID: 3887353014387797409, guid: 2094b9c982bae6041bb4dd2b8469ea7e, type: 3}
+  - {fileID: 7658861364704603207, guid: 1d32f0f0468626e46bf7f8c3bdff8ac0, type: 3}
+  - {fileID: 3812806161092384717, guid: c383a79b455d99e47bc06e6c650b318b, type: 3}
+  skybox: {fileID: 2100000, guid: e077fc01fea8beddccea4f756edc7d47, type: 2}

@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28798282f63d58e468f03d43cf8c992f, type: 3}
+  m_Name: Dungeon_ObstacleLibrary
+  m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.ThemeObstacleLibrary
+  useCityPacing: 0
+  cityPacing:
+    minimumFamilyAppearances: 3
+    easySeconds: {x: 4, y: 5}
+    normalSeconds: {x: 3, y: 4}
+    hardSeconds: {x: 2.5, y: 3}
+    breathingSeconds: 1
+  fixedFamilies: []
+  movingFamilies: []
+  jumpFamilies: []
+  roadworksTracks: []
+  junctionTracks: []
+  roadsideStops: []
+  longitudinalTrafficTracks: []
+  dungeonTraps:
+  - {fileID: 6727619910889035441, guid: 1b2aa44d7cd2d6b459006af992e3824e, type: 3}
+  - {fileID: 2366362032976976271, guid: 21d1b93b01e7400468ba0bc35a615f94, type: 3}
+  - {fileID: 9058680337699457479, guid: a863c3278df698f428cf1aa625f82052, type: 3}
+  - {fileID: 4257854096159479837, guid: dbc60cc892e09ca4f8592f9505829cf4, type: 3}
+  - {fileID: 1729834433434583031, guid: 4e0a593713845ef4ab5380513aa2eab4, type: 3}
+  - {fileID: 7604155712717307113, guid: 8f96ec62f6fecfc4a86c62d30cb997f3, type: 3}
+  - {fileID: 6622971039696086987, guid: 1676705f543861041ad637eb5bd18aef, type: 3}
+  - {fileID: 2040648807292409846, guid: 13a22640d1e4d774e8e1f6ce398ade95, type: 3}
+  - {fileID: 4297497410330225964, guid: 0f211eec5206116449f4c5bfe541f7e9, type: 3}
+  beachBarrierTracks: []
+  combinationPatterns: []
+  combinedEncounters: []
