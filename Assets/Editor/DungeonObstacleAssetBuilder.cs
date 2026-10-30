@@ -7,14 +7,16 @@ using EndlessRollball.Track;
 [InitializeOnLoad]
 public static class DungeonObstacleAssetBuilder
 {
-    private const string Folder="Assets/EndlessRollballAssets/Obstacles/Dungeon";
-    private const string Column="Assets/EndlessRollballAssets/Dungeon/KayKit Dungeon Pack/KayKit_Dungeon_Pack_1.1_FREE/Assets/fbx(unity)/pillar.fbx";
+    private const string RootFolder="Assets/EndlessRollballAssets/Obstacles/Dungeon";
+    private const string Folder=RootFolder+"/Prefabs";
+    private const string Materials=RootFolder+"/Texture";
+    private const string Column="Assets/EndlessRollballAssets/Dungeon/KayKit_Dungeon_Pack_1.1_FREE/Assets/fbx(unity)/pillar.fbx";
     static DungeonObstacleAssetBuilder() { EditorApplication.delayCall+=AutoBuild; }
     private static void AutoBuild()
     {
         if(EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating)
         { EditorApplication.delayCall+=AutoBuild; return; }
-        if(AssetDatabase.LoadAssetAtPath<ThemeObstacleLibrary>(Folder+"/Dungeon_ObstacleLibrary.asset")==null) Build();
+        if(AssetDatabase.LoadAssetAtPath<ThemeObstacleLibrary>(RootFolder+"/Dungeon_ObstacleLibrary.asset")==null) Build();
         UpgradeEffects();
         UpdatePillarModels();
         BuildJumpPillars();
@@ -27,6 +29,8 @@ public static class DungeonObstacleAssetBuilder
         var stone=Material("Stone",new Color(.29f,.28f,.25f));
         var warning=Material("Warning",new Color(1,.35f,.035f));
         var pillars=new List<GameObject>(); var traps=new List<DungeonTrapEncounter>();
+        var rollingPrefab=AssetDatabase.LoadAssetAtPath<GameObject>(Folder+"/RollingStoneBall.prefab");
+        var rolling=rollingPrefab!=null?rollingPrefab.GetComponent<DungeonRollingStoneBall>():null;
         foreach(int side in new[]{-1,1})
         {
             string suffix=side<0?"Left":"Right";
@@ -42,7 +46,8 @@ public static class DungeonObstacleAssetBuilder
                 for(int i=0;i<3;i++) Cube(root.transform,"Fragment",new Vector3(side*(.8f+i*.6f),.12f,.95f),new Vector3(.25f,.24f,.3f),stone);
             }));
             foreach(var kind in new[]{DungeonTrapEncounter.TrapKind.Rubble,DungeonTrapEncounter.TrapKind.SlidingBlock})
-                traps.Add(Save(kind+"_"+suffix,root=>MakeTrap(root,kind,side,stone,warning)).GetComponent<DungeonTrapEncounter>());
+                if(kind!=DungeonTrapEncounter.TrapKind.SlidingBlock || rolling==null)
+                    traps.Add(Save(kind+"_"+suffix,root=>MakeTrap(root,kind,side,stone,warning)).GetComponent<DungeonTrapEncounter>());
         }
         traps.Add(Save("FireBarrier",root=>MakeTrap(root,DungeonTrapEncounter.TrapKind.Fire,0,stone,warning)).GetComponent<DungeonTrapEncounter>());
         var library=ScriptableObject.CreateInstance<ThemeObstacleLibrary>();
@@ -53,15 +58,20 @@ public static class DungeonObstacleAssetBuilder
         for(int i=0;i<2;i++) variants.GetArrayElementAtIndex(i).objectReferenceValue=pillars[i];
         var array=serialized.FindProperty("dungeonTraps");array.arraySize=traps.Count;
         for(int i=0;i<traps.Count;i++) array.GetArrayElementAtIndex(i).objectReferenceValue=traps[i];
+        if(rolling!=null)
+        {
+            var rollingArray=serialized.FindProperty("rollingStoneBalls");rollingArray.arraySize=1;
+            rollingArray.GetArrayElementAtIndex(0).objectReferenceValue=rolling;
+        }
         serialized.ApplyModifiedPropertiesWithoutUndo();
-        string path=Folder+"/Dungeon_ObstacleLibrary.asset";
+        string path=RootFolder+"/Dungeon_ObstacleLibrary.asset";
         var existing=AssetDatabase.LoadAssetAtPath<ThemeObstacleLibrary>(path);
         if(existing!=null) { UnityEngine.Object.DestroyImmediate(library); library=existing; }
         else AssetDatabase.CreateAsset(library,path);
         var config=AssetDatabase.LoadMainAssetAtPath("Assets/EndlessRollballAssets/Configuration/Environment/GameplayScene_Dungeon.asset");
         var settings=new SerializedObject(config);settings.FindProperty("obstacleLibrary").objectReferenceValue=library;settings.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(config);AssetDatabase.SaveAssets();
-        Debug.Log("Dungeon obstacles built: 2 pillars, fire, 2 rubble and 2 sliding traps; Dungeon theme library assigned. Play Mode validation required.");
+        Debug.Log("Dungeon obstacle assets prepared; an existing rolling stone replaces sliding blocks in a newly created library. Existing library and edited prefabs are preserved. Play Mode validation required.");
     }
     private static GameObject Save(string name,Action<GameObject> populate)
     {
@@ -112,7 +122,7 @@ public static class DungeonObstacleAssetBuilder
     private static void BuildJumpPillars()
     {
         if(EditorApplication.isPlayingOrWillChangePlaymode) return;
-        var library=AssetDatabase.LoadAssetAtPath<ThemeObstacleLibrary>(Folder+"/Dungeon_ObstacleLibrary.asset");
+        var library=AssetDatabase.LoadAssetAtPath<ThemeObstacleLibrary>(RootFolder+"/Dungeon_ObstacleLibrary.asset");
         var source=AssetDatabase.LoadAssetAtPath<GameObject>(Column);
         if(library==null || source==null) return;
         foreach(int side in new[]{-1,1})
@@ -175,7 +185,7 @@ public static class DungeonObstacleAssetBuilder
     }
     private static Material Material(string name,Color color)
     {
-        string path=Folder+"/"+name+".mat";var mat=AssetDatabase.LoadAssetAtPath<Material>(path);if(mat!=null)return mat;
+        string path=Materials+"/"+name+".mat";var mat=AssetDatabase.LoadAssetAtPath<Material>(path);if(mat!=null)return mat;
         mat=new Material(Shader.Find("Universal Render Pipeline/Lit"));mat.SetColor("_BaseColor",color);AssetDatabase.CreateAsset(mat,path);return mat;
     }
     private static void Cube(Transform parent,string name,Vector3 centre,Vector3 size,Material mat)

@@ -6,7 +6,8 @@ using EndlessRollball.Track;
 [InitializeOnLoad]
 public static class DungeonPillarRefinement
 {
-    private const string Folder="Assets/EndlessRollballAssets/Obstacles/Dungeon/";
+    private const string RootFolder="Assets/EndlessRollballAssets/Obstacles/Dungeon/";
+    private const string Folder=RootFolder+"Prefabs/";
     static DungeonPillarRefinement() {EditorApplication.delayCall+=WhenReady;}
     private static void WhenReady()
     {
@@ -46,7 +47,7 @@ public static class DungeonPillarRefinement
     private static void Refine(bool force)
     {
         if(EditorApplication.isPlayingOrWillChangePlaymode) return;
-        var library=AssetDatabase.LoadAssetAtPath<ThemeObstacleLibrary>(Folder+"Dungeon_ObstacleLibrary.asset");
+        var library=AssetDatabase.LoadAssetAtPath<ThemeObstacleLibrary>(RootFolder+"Dungeon_ObstacleLibrary.asset");
         foreach(bool jump in new[]{false,true}) foreach(int side in new[]{-1,1})
         {
             string name="CollapsedPillar_"+(jump?"Jump_":"")+(side<0?"Left":"Right");

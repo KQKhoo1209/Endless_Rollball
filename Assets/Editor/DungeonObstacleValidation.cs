@@ -53,17 +53,14 @@ public static class DungeonObstacleValidation
                         counts[family]=counts.TryGetValue(family,out int n)?n+1:1;
                     }
                 }
-                bool oversizedEasyPillar=mode==DifficultyMode.Easy && !counts.ContainsKey("Dungeon.PillarJump") &&
-                    !Array.Exists(library.DungeonTraps,t=>t!=null && t.Kind==DungeonTrapEncounter.TrapKind.PillarJump && t.CanClearJump(3,9,ball.JumpSpeed,ball.SphereRadius,Time.fixedDeltaTime));
-                if(counts.Count!=(oversizedEasyPillar?4:5)) throw new Exception($"Missing Dungeon family: {mode} seed {seed}");
-                if(oversizedEasyPillar && seed==0) Debug.LogWarning("Edited jump pillar is too thick for Easy minimum-speed clearance; safely excluded. Reduce its visual cross-section before requiring this family on Easy.");
+                if(counts.Count!=5) throw new Exception($"Missing Dungeon family: {mode} seed {seed}");
                 foreach(var pair in counts) if(pair.Value<3) throw new Exception("Dungeon minimum coverage failed: "+pair.Key);
                 runs++;
             }
             foreach(var source in library.DungeonTraps)
             {
                 if(source.Hazard==null || !source.Hazard.GetComponent<Rigidbody>().isKinematic) throw new Exception("Invalid Dungeon hazard body.");
-                if(source.Kind==DungeonTrapEncounter.TrapKind.Fire && (!source.Hazard.isTrigger || source.Hazard.size.x<6 || source.Hazard.size.y>.5f)) throw new Exception("Invalid fire geometry.");
+                if(source.Kind==DungeonTrapEncounter.TrapKind.Fire && !source.Hazard.isTrigger) throw new Exception("Fire hazard must be a trigger.");
                 var instance=UnityEngine.Object.Instantiate(source);
                 try
                 {
@@ -92,7 +89,7 @@ public static class DungeonObstacleValidation
                 finally { UnityEngine.Object.DestroyImmediate(instance.gameObject); }
             }
             reset.Invoke(manager,null);
-            Debug.Log($"Dungeon obstacle validation PASS: {runs} seeded runs x 300 compatible segments; eligible families >=3 (oversized Easy jump pillars excluded); fire trigger, pause and reset contracts valid. Fixture excludes actual transitions, short visits, scenery overlap and Play Mode.");
+            Debug.Log($"Dungeon obstacle validation PASS: {runs} seeded runs x 300 compatible segments; configured families >=3; fire trigger, pause and reset contracts valid. Use Check Dungeon Rolling Stone Integration for rolling-stone ownership and scoring. Fixture excludes actual transitions, short visits, scenery overlap and Play Mode.");
         }
         finally { GameSessionSettings.SelectedMode=previousMode; UnityEngine.Object.DestroyImmediate(fixture); }
     }

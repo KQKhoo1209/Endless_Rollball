@@ -7,8 +7,8 @@ using EndlessRollball.Track;
 public static class DungeonRoadRailingsBuilder
 {
     private const string Road="Assets/EndlessRollballAssets/Environment Prefab/Roads/TRK_Dungeon_Road_24m.prefab";
-    private const string Column="Assets/EndlessRollballAssets/Dungeon/KayKit Dungeon Pack/KayKit_Dungeon_Pack_1.1_FREE/Assets/fbx(unity)/column.fbx";
-    private const string Materials="Assets/EndlessRollballAssets/Obstacles/Dungeon/";
+    private const string Column="Assets/EndlessRollballAssets/Dungeon/KayKit_Dungeon_Pack_1.1_FREE/Assets/fbx(unity)/column.fbx";
+    private const string Materials="Assets/EndlessRollballAssets/Obstacles/Dungeon/Texture/";
     static DungeonRoadRailingsBuilder() {EditorApplication.delayCall+=WhenReady;}
     private static void WhenReady()
     {
