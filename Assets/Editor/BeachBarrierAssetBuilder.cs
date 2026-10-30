@@ -12,7 +12,7 @@ public static class BeachBarrierAssetBuilder
     private const string Folder="Assets/EndlessRollballAssets/Obstacles/Beach/BarriersV2";
     private const string Road="Assets/EndlessRollballAssets/Environment Prefab/Roads/TRK_Beach_Road_24m.prefab";
     private const string Library="Assets/EndlessRollballAssets/Obstacles/Beach/Beach_ObstacleLibrary.asset";
-    private const string Shared="Assets/EndlessRollballAssets/Obstacles/Shared/Prefabs/JumpableOnly/OBS_JMP_01_LogRow.prefab";
+    private const string Shared="Assets/EndlessRollballAssets/Obstacles/Beach/Prefabs/OBS_Beach_Jump.prefab";
     static BeachBarrierAssetBuilder() { EditorApplication.delayCall+=AutoBuild; }
     private static void AutoBuild()
     {

@@ -192,6 +192,13 @@ namespace EndlessRollball.Scenery
             return slot.Theme == EnvironmentTheme.Street && !slot.IsTunnel;
         }
 
+        internal bool IsDungeonRoadSegment(int index)
+        {
+            if(!sceneryReady || index<0) return false;
+            var slot=GetScenerySlot(index);
+            return slot.Theme==EnvironmentTheme.Dungeon && !slot.IsTunnel;
+        }
+
         internal bool IsCityTrafficApproach(int index)
         {
             if (!CanUseCityTrafficAt(index) || !LongitudinalTrafficEncounter.IsApproachSegment(index))

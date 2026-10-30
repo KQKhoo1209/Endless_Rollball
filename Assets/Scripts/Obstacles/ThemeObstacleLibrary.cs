@@ -73,6 +73,10 @@ namespace EndlessRollball.Track
         [SerializeField] private DungeonTrapEncounter[] dungeonTraps = Array.Empty<DungeonTrapEncounter>();
         public DungeonTrapEncounter[] DungeonTraps => dungeonTraps;
 
+        [Header("Dungeon oncoming rolling stones")]
+        [SerializeField] private DungeonRollingStoneBall[] rollingStoneBalls = Array.Empty<DungeonRollingStoneBall>();
+        public DungeonRollingStoneBall[] RollingStoneBalls => rollingStoneBalls;
+
         [Header("Beach moving jump tracks")]
         [SerializeField] private BeachBarrierEncounter[] beachBarrierTracks = Array.Empty<BeachBarrierEncounter>();
         public BeachBarrierEncounter[] BeachBarrierTracks => beachBarrierTracks;

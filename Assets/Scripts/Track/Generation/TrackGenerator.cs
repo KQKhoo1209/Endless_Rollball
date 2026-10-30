@@ -257,7 +257,7 @@ namespace EndlessRollball.Track
                     yield break;
                 }
 
-                effectiveTrackIdentifier += "-encounters-v13-dungeon-traps-6m";
+                effectiveTrackIdentifier += "-encounters-v14-dungeon-rolling-stone-6m";
             }
 
             if (taskTracker != null)
@@ -520,6 +520,22 @@ namespace EndlessRollball.Track
                     !environmentManager.IsStreetRoadSegment(index)) return false;
                 covered = road.ExitAnchor.position.z;
                 if (covered >= maxZ) return true;
+            }
+            return false;
+        }
+
+        internal bool HasVisibleDungeonRoad(float minZ, float maxZ)
+        {
+            float covered=minZ;
+            foreach(ActiveSegment entry in activeSegments)
+            {
+                TrackSegment road=entry.Instance;
+                if(road==null || road.ExitAnchor.position.z<=covered) continue;
+                if(road.EntryAnchor.position.z>covered+.01f) return false;
+                if(!road.IsPresentationVisible || road.RequiredJump || environmentManager==null ||
+                    !environmentManager.IsDungeonRoadSegment(entry.Index)) return false;
+                covered=road.ExitAnchor.position.z;
+                if(covered>=maxZ) return true;
             }
             return false;
         }

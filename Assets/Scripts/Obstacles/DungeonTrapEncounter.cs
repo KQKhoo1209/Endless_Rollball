@@ -28,13 +28,6 @@ namespace EndlessRollball.Track
         public void ConfigureImpact(ParticleSystem dust) {impactDust=dust;pillarFallSeconds=1.4f;}
         public BoxCollider Hazard => hazard;
         public Bounds SettledBounds => new Bounds(settledPosition+hazard.center,hazard.size);
-        public bool CanClearJump(float minimumSpeed,float maximumSpeed,float jumpSpeed,float radius,float step)
-        {
-            Bounds bounds=SettledBounds;
-            float gravity=Mathf.Max(.1f,-Physics.gravity.y);
-            float discriminant=jumpSpeed*jumpSpeed-2*gravity*(bounds.max.y+.08f);
-            return discriminant>0 && 2*Mathf.Sqrt(discriminant)/gravity*minimumSpeed >= bounds.size.z+2*radius+maximumSpeed*step+.2f;
-        }
         public float PassageX => RequiredJump ? 0 : -Mathf.Sign(SettledBounds.center.x)*1.5f;
         public void ConfigureFall(Vector3 pivot,float angle)
         { fallsOnApproach=true; fallPivot=pivot; standingAngle=angle; }
@@ -82,10 +75,29 @@ namespace EndlessRollball.Track
                 Quaternion tilt=Quaternion.Euler(0,0,Mathf.Lerp(standingAngle,0,Mathf.Pow(progress,2.5f)));
                 body.MovePosition(transform.TransformPoint(fallPivot+tilt*(settledPosition-fallPivot)));
                 body.MoveRotation(transform.rotation*tilt);
-                if(progress>=1 && !impactPlayed)
-                { impactPlayed=true; if(impactDust!=null) impactDust.Play(); }
             }
-            else body.MovePosition(transform.TransformPoint(Vector3.Lerp(initialPosition,settledPosition,progress)));
+            else
+            {
+                // Rubble accelerates downward; sliding blocks retain their current motion.
+                float movement = kind == TrapKind.Rubble
+                    ? progress * progress
+                    : progress;
+
+                body.MovePosition(
+                    transform.TransformPoint(
+                        Vector3.Lerp(initialPosition, settledPosition, movement)));
+            }
+
+            // Play once when a pillar or rubble finishes falling.
+            if (progress >= 1f &&
+                !impactPlayed &&
+                (fallsOnApproach || kind == TrapKind.Rubble))
+            {
+                impactPlayed = true;
+
+                if (impactDust != null)
+                    impactDust.Play(true);
+            }
         }
         private void OnDisable()
         { running=false; started=false; elapsed=0; player=null;

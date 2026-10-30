@@ -94,7 +94,8 @@ namespace EndlessRollball.Track
 
             UseFixedThemeLibrary(library);
 
-            if (library != null && library.DungeonTraps.Length > 0)
+            bool dungeonLibraryAvailable=library!=null && (library.DungeonTraps.Length>0 || library.RollingStoneBalls.Length>0);
+            if (dungeonLibraryAvailable)
             {
                 // Give independently configured physical gaps their existing selection chance first.
                 var gapRandom=new System.Random(unchecked(runSeed ^ index*3571));
@@ -105,7 +106,7 @@ namespace EndlessRollball.Track
                 { planner.Commit(index,physicalGap.EndZ,0,"Gap"); return new SegmentPlan(gap,new List<EncounterPlan>{physicalGap}); }
                 if(TryPlanDungeon(road,index,difficulty,originZ,reservationLimit,library,out var dungeon)) return dungeon;
             }
-            if(library == null || library.DungeonTraps.Length == 0) FinishDungeonVisit();
+            if(!dungeonLibraryAvailable) FinishDungeonVisit();
             else runFixed = Array.Empty<GameObject>(); // Dungeon rejects must not bypass its reservations through generic parking.
 
             if (allowBeachBarriers && TryPlanBeachBarrier(road, index, difficulty, originZ, reservationLimit, library, out SegmentPlan beach)) return beach;
@@ -196,7 +197,7 @@ namespace EndlessRollball.Track
 
             if (plan.Encounters != null)
                 foreach (EncounterPlan encounter in plan.Encounters)
-                    AttachPlanned(segment, encounter);
+                    AttachPlanned(segment, encounter, generator);
         }
 
         private EncounterPlan ChooseEncounter(TrackSegment road, TrackSegment gap, int index, long identity, DifficultySnapshot difficulty, float origin, float centre, float limit, System.Random random, bool avoidLastFamily = false)

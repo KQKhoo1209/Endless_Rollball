@@ -110,6 +110,12 @@ namespace EndlessRollball.Track
         private double recoveryReadyAt;
         private double recoveryStartedAt;
         private BallShatterEffect ballShatter;
+        private BallBurnEffect ballBurn;
+        private const float BurnRollSeconds = 2.1f;
+        private const float BurnPresentationSeconds = 3f;
+        private bool burnRecovering;
+        private bool burnEnding;
+        private double burnEndingStartedAt;
         private bool respawnFlashing;
         private float respawnFlashElapsed;
         private Renderer[] respawnRenderers = Array.Empty<Renderer>();
@@ -167,12 +173,33 @@ namespace EndlessRollball.Track
 
         private void LateUpdate()
         {
+            if(State==SessionFlowState.Ending && burnEnding)
+            {
+                float elapsed=(float)(Time.unscaledTimeAsDouble-burnEndingStartedAt);
+                ballBurn?.Sample(elapsed,BurnPresentationSeconds);
+                if(elapsed>=BurnRollSeconds)
+                {
+                    ballMovement.StopMotionForCompletion();
+                    HoldClockAndCamera();
+                }
+                if(elapsed>=BurnPresentationSeconds) {burnEnding=false;State=SessionFlowState.Results;sessionUI.ShowResult(EndInfo);}
+            }
             if (State == SessionFlowState.Ending && finishPhase != FinishPhase.None)
                 UpdateFinishPresentation();
             // Collision callbacks latch once; teleport only after the physics step has finished.
             if (State == SessionFlowState.Recovering)
             {
                 ballShatter?.Sample((float)(Time.unscaledTimeAsDouble - recoveryStartedAt), (float)(recoveryReadyAt - recoveryStartedAt));
+                if(burnRecovering)
+                {
+                    float elapsed=(float)(Time.unscaledTimeAsDouble-recoveryStartedAt);
+                    ballBurn?.Sample(elapsed,BurnPresentationSeconds);
+                    if(elapsed>=BurnRollSeconds)
+                    {
+                        ballMovement.StopMotionForCompletion();
+                        HoldClockAndCamera();
+                    }
+                }
                 if (Time.unscaledTimeAsDouble >= recoveryReadyAt)
                     CompleteRecovery();
             }
@@ -278,8 +305,14 @@ namespace EndlessRollball.Track
             StopRespawnFlash();
 
             trackGenerator.SetGenerationPaused(true);
-            HoldClockAndCamera();
-            ballMovement.StopMotionForCompletion();
+
+            burnRecovering=BallBurnEffect.IsFireContact(relatedHazard);
+            if(burnRecovering) ballMovement.BeginBurnRoll(BurnRollSeconds);
+            else
+            {
+                HoldClockAndCamera();
+                ballMovement.StopMotionForCompletion();
+            }
 
             recoveryMinimumZ =
                 taskTracker.RecordFailure(outcome, relatedHazard);
@@ -288,10 +321,19 @@ namespace EndlessRollball.Track
             recoveryReadyAt =
                 recoveryStartedAt + Mathf.Max(0f, respawnDelaySeconds);
 
-            if (ballShatter == null)
-                ballShatter = new BallShatterEffect();
-
-            ballShatter.Play(ballMovement);
+            ballShatter?.Stop();
+            ballBurn?.Stop();
+            if(burnRecovering)
+            {
+                if(ballBurn==null) ballBurn=new BallBurnEffect();
+                recoveryReadyAt=Math.Max(recoveryReadyAt,recoveryStartedAt+BurnPresentationSeconds);
+                ballBurn.Play(ballMovement);
+            }
+            else
+            {
+                if(ballShatter==null) ballShatter=new BallShatterEffect();
+                ballShatter.Play(ballMovement);
+            }
         }
 
         private void CompleteRecovery()
@@ -303,6 +345,9 @@ namespace EndlessRollball.Track
             }
 
             ballShatter?.Stop();
+            ballBurn?.Stop();
+            burnRecovering=false;
+            burnEnding=false;
             taskTracker.PrepareRecoveryArrival(position.z);
             ReleaseClockAndCamera();
             ballMovement.ResetMotion(position, Quaternion.identity);
@@ -377,12 +422,18 @@ namespace EndlessRollball.Track
                 CaptureActiveInterval();
             State = SessionFlowState.Ending; // Latch before stopping physics/callbacks.
             ballShatter?.Stop();
+            ballBurn?.Stop();
+            burnEnding=false;
             StopRespawnFlash();
             trackGenerator.SetGenerationPaused(true);
             if (outcome == SessionOutcome.Completed)
             {
                 HoldCamera(); // Retain the finish composition while the ball rolls through it.
                 ballMovement.BeginFinishRoll(trackGenerator.FinishLineZ, finishSlowdownSeconds);
+            }
+            else if(outcome==SessionOutcome.Collision && BallBurnEffect.IsFireContact(relatedHazard))
+            {
+                ballMovement.BeginBurnRoll(BurnRollSeconds);
             }
             else
             {
@@ -410,6 +461,12 @@ namespace EndlessRollball.Track
                 return;
             }
 
+            if(outcome==SessionOutcome.Collision && BallBurnEffect.IsFireContact(relatedHazard))
+            {
+                if(ballBurn==null) ballBurn=new BallBurnEffect();
+                ballBurn.Play(ballMovement);burnEnding=true;burnEndingStartedAt=Time.unscaledTimeAsDouble;
+                sessionUI.ShowEndingPresentation();return;
+            }
             State = SessionFlowState.Results;
             sessionUI.ShowResult(EndInfo);
         }
@@ -592,6 +649,9 @@ namespace EndlessRollball.Track
         {
             StopFinishPresentation();
             ballShatter?.Stop();
+            ballBurn?.Stop();
+            burnRecovering=false;
+            burnEnding=false;
             StopRespawnFlash();
             State = SessionFlowState.SetupError;
             HideFinishGate();
@@ -636,10 +696,13 @@ namespace EndlessRollball.Track
 
         private void OnDisable()
         {
+            burnRecovering=false;
             if (finishPhase != FinishPhase.None)
                 State = SessionFlowState.SetupError;
             StopFinishPresentation();
             ballShatter?.Stop();
+            ballBurn?.Stop();
+            burnEnding=false;
             StopRespawnFlash();
             UnsubscribeFromGenerator();
             if (State == SessionFlowState.Running)
@@ -658,6 +721,7 @@ namespace EndlessRollball.Track
         {
             finishCelebration?.Dispose();
             ballShatter?.Dispose();
+            ballBurn?.Dispose();
             if (finishGateInstance != null)
                 Destroy(finishGateInstance);
         }
