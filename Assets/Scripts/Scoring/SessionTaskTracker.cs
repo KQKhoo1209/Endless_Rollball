@@ -133,6 +133,12 @@ namespace EndlessRollball.Track
             bool measured = false;
             foreach (Collider collider in hazards)
             {
+                if(collider is SphereCollider sphere && sphere.enabled && !sphere.isTrigger &&
+                    sphere.GetComponentInParent<DungeonRollingStoneBall>()!=null)
+                {
+                    EncapsulateLocalBounds(new Bounds(sphere.center,Vector3.one*(2f*sphere.radius)),sphere.transform,payload.transform,ref envelope,ref measured);
+                    continue;
+                }
                 PalmObstacle palm = collider.GetComponentInParent<PalmObstacle>();
                 if (!(collider is BoxCollider box) || !box.enabled ||
                     (box.isTrigger && (palm == null || !palm.IsLeafSensor(box)) && box.GetComponentInParent<DungeonTrapEncounter>() == null))
@@ -142,7 +148,7 @@ namespace EndlessRollball.Track
 
             if (!measured)
             {
-                RegistrationError(track, "No box hazard geometry.");
+                RegistrationError(track, "No supported hazard geometry.");
                 return;
             }
 
@@ -592,8 +598,12 @@ namespace EndlessRollball.Track
 
         private static void EncapsulateBox(BoxCollider box, Transform root, ref Bounds combined, ref bool initialized)
         {
-            var local = new Bounds(box.center, box.size);
-            Matrix4x4 matrix = root.worldToLocalMatrix * box.transform.localToWorldMatrix;
+            EncapsulateLocalBounds(new Bounds(box.center,box.size),box.transform,root,ref combined,ref initialized);
+        }
+
+        private static void EncapsulateLocalBounds(Bounds local, Transform owner, Transform root, ref Bounds combined, ref bool initialized)
+        {
+            Matrix4x4 matrix = root.worldToLocalMatrix * owner.localToWorldMatrix;
             for (int i = 0; i < 8; i++)
             {
                 Vector3 corner = local.center + Vector3.Scale(local.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));

@@ -252,6 +252,19 @@ public sealed class BallMovement : MonoBehaviour
         DiscardBufferedInput();
     }
 
+    internal void BeginBurnRoll(float seconds)
+    {
+        if (ballRigidbody == null) ballRigidbody = GetComponent<Rigidbody>();
+        if (movementStopped) return;
+        finishRolling = true;
+        finishCoastThroughZ = ballRigidbody.position.z - 1f;
+        finishRollSpeed = Mathf.Max(0f, ballRigidbody.linearVelocity.z);
+        finishBrakeDuration = Mathf.Max(.1f, seconds);
+        finishBrakeElapsed = 0f;
+        finishAngularVelocity = ballRigidbody.angularVelocity;
+        DiscardBufferedInput();
+    }
+
     private void UpdateFinishRoll()
     {
         // Keep the incoming forward motion until the entire sphere has crossed the gate.

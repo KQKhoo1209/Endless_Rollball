@@ -57,6 +57,8 @@ namespace EndlessRollball.Track
             public SideToSideObstacleMotion Motion;
             public PalmObstacle Palm;
             public DungeonTrapEncounter Dungeon;
+            public DungeonRollingStoneBall RollingStone;
+            public DungeonRollingStoneBall RollingStoneSource;
             public Collider[] Colliders;
             public bool Visible = true;
         }
@@ -238,7 +240,7 @@ namespace EndlessRollball.Track
         }
         private float GapTakeoffZ(TrackSegment gap) => GapEdges(gap).x;
         private float GapLandingZ(TrackSegment gap) => GapEdges(gap).y;
-        internal void AttachPlanned(TrackSegment segment, EncounterPlan plan)
+        internal void AttachPlanned(TrackSegment segment, EncounterPlan plan, TrackGenerator generator = null)
         {
             if (!ready || segment == null || !plan.HasEncounter || plan.Owner != this || plan.Version != runVersion || segment.SegmentId != plan.Track.SegmentId)
                 return;
@@ -274,6 +276,8 @@ namespace EndlessRollball.Track
                     };
                     pair.Palm = instance.GetComponent<PalmObstacle>();
                     pair.Dungeon = instance.GetComponent<DungeonTrapEncounter>();
+                    pair.RollingStone = instance.GetComponent<DungeonRollingStoneBall>();
+                    if(pair.RollingStone!=null) pair.RollingStoneSource=placement.Prefab.GetComponent<DungeonRollingStoneBall>();
                     pair.RendererDefaults = new bool[pair.Renderers.Length];
                     for (int r = 0; r < pair.Renderers.Length; r++)
                         pair.RendererDefaults[r] = pair.Renderers[r].enabled;
@@ -295,6 +299,7 @@ namespace EndlessRollball.Track
                     pair.Motion.SetRunning(!motionPaused);
 
                 if(pair.Dungeon!=null) pair.Dungeon.Prepare(ballMovement, placement.Speed, motionPaused);
+                if(pair.RollingStone!=null) pair.RollingStone.Prepare(ballMovement, placement.Speed, placement.Phase, motionPaused, generator, pair.RollingStoneSource);
                 pairs.Add(pair);
                 CombinedObstacleEncounter combined = instance.GetComponent<CombinedObstacleEncounter>();
 
@@ -335,7 +340,7 @@ namespace EndlessRollball.Track
                         placement.TaskIndex,
                         pair.Colliders,
                         plan.EncounterId,
-                        plan.Window(placement.TaskIndex), pair.Dungeon != null);
+                        plan.Window(placement.TaskIndex), pair.Dungeon != null || pair.RollingStone != null);
                 }
             }
 
@@ -381,6 +386,7 @@ namespace EndlessRollball.Track
                         pair.Motion.SetRunning(!paused);
                     if (pair.Palm != null) pair.Palm.SetRunning(!paused);
                     if (pair.Dungeon != null) pair.Dungeon.SetRunning(!paused);
+                    if (pair.RollingStone != null) pair.RollingStone.SetRunning(!paused);
                 }
         }
 
@@ -424,6 +430,12 @@ namespace EndlessRollball.Track
 
         private static void ApplyVisibility(ObstaclePair pair, bool visible)
         {
+            if(pair.RollingStone!=null)
+            {
+                pair.Visible=visible;
+                pair.RollingStone.SetPresentationVisible(visible);
+                return;
+            }
             if (pair.Visible == visible)
                 return;
             pair.Visible = visible;
@@ -505,7 +517,9 @@ namespace EndlessRollball.Track
             foreach(var barrier in activeBeachBarriers.Values)
                 if(barrier.Hazard == shape) return true;
             PalmObstacle palm = shape.GetComponentInParent<PalmObstacle>();
-            if (shape.isTrigger && (palm == null || !palm.IsLeafSensor(shape))) return false;
+            DungeonTrapEncounter dungeon = shape.GetComponentInParent<DungeonTrapEncounter>();
+            if (shape.isTrigger && (palm == null || !palm.IsLeafSensor(shape)) &&
+                (dungeon == null || dungeon.Hazard != shape)) return false;
 
             if (OwnsRoadworksCollider(shape))
                 return true;
