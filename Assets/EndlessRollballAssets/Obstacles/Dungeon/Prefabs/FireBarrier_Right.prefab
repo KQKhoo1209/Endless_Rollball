@@ -48,6 +48,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.DungeonTrapEncounter
   kind: 0
+  fireAllowsNavigation: 1
   body: {fileID: 5749543299004749927}
   hazard: {fileID: 7165421321935335186}
   settledPosition: {x: 0, y: 0.25, z: 0}

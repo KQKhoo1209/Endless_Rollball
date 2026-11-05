@@ -21022,9 +21022,9 @@ MonoBehaviour:
   entryAnchor: {fileID: 2996254243283550779}
   exitAnchor: {fileID: 140705271271904557}
   kind: 2
-  allowedModes: 15
-  entryLanes: 7
-  safeLanes: 7
+  allowedModes: -1
+  entryLanes: -1
+  safeLanes: -1
   requiredJump: 1
   presentationRoot: {fileID: 96814682071179852}
   easyWeight: 1
@@ -21061,6 +21061,7 @@ MonoBehaviour:
   - {fileID: 9172433111191206645}
   - {fileID: 2839350487579491904}
   - {fileID: 6563788313644213299}
+  fallSensor: {fileID: 0}
 --- !u!1 &1779333713243785486
 GameObject:
   m_ObjectHideFlags: 0

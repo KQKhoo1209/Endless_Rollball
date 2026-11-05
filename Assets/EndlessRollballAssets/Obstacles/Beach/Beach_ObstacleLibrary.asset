@@ -38,3 +38,12 @@ MonoBehaviour:
   - {fileID: 2345727127112216358, guid: bfa2df54d6236b249992e40bba8bb35b, type: 3}
   combinationPatterns: []
   combinedEncounters: []
+  useSharedPacing: 1
+  sharedPacing:
+    minimumFamilyAppearances: 3
+    easySeconds: {x: 3, y: 3.5}
+    normalSeconds: {x: 1.6, y: 2}
+    hardSeconds: {x: 0.2, y: 0.3}
+    endlessMinimumSeconds: {x: 2, y: 2}
+    endlessMaximumSeconds: {x: 0.4, y: 0.6}
+    passageExtraWidth: {x: 0.6, y: 0.4, z: 0.2}

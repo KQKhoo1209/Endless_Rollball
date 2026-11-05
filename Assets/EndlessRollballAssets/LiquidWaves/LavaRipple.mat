@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_Name: LavaRipple
+  m_Shader: {fileID: 4800000, guid: a8cc53f14cdc438fb858f356ff780e80, type: 3}
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_CustomRenderQueue: 3000
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _WaveHeight: 0.06
+    - _WaveFrequency: 0.35
+    - _WaveSpeed: 0.35
+    m_Colors:
+    - _Color: {r: 2, g: 0.45, b: 0.04, a: 0.55}

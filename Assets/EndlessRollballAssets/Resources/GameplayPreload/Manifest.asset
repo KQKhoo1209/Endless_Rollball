@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28d28a6b4f1a494f840e6ff713e1916d, type: 3}
+  m_Name: Manifest
+  m_EditorClassIdentifier: 
+  sharedGroups:
+  - GameplayPreload/Track
+  - GameplayPreload/Obstacles
+  - GameplayPreload/Presentation
+  - CloudMusic/Easy
+  - CloudMusic/Easy_2
+  - CloudMusic/Easy_3
+  - CloudMusic/Hard
+  - CloudMusic/Hard_2
+  - CloudMusic/Hard_3
+  - CloudMusic/Normal
+  - CloudMusic/Normal_2
+  - CloudMusic/Normal_3
+  - CloudPiano/C3
+  - CloudPiano/C4
+  - CloudPiano/C5
+  - CloudPiano/C6

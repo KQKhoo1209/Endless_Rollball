@@ -12,6 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 28798282f63d58e468f03d43cf8c992f, type: 3}
   m_Name: Dungeon_ObstacleLibrary
   m_EditorClassIdentifier: EndlessRollball.Runtime::EndlessRollball.Track.ThemeObstacleLibrary
+  useSharedPacing: 1
+  sharedPacing:
+    minimumFamilyAppearances: 3
+    easySeconds: {x: 3, y: 3.5}
+    normalSeconds: {x: 1.6, y: 2}
+    hardSeconds: {x: 0.2, y: 0.3}
+    endlessMinimumSeconds: {x: 2, y: 2}
+    endlessMaximumSeconds: {x: 0.4, y: 0.6}
+    navigationShare: 0.75
+    passageExtraWidth: {x: 0.6, y: 0.4, z: 0.2}
   useCityPacing: 0
   cityPacing:
     minimumFamilyAppearances: 3
