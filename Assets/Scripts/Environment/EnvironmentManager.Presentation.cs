@@ -72,7 +72,8 @@ namespace EndlessRollball.Scenery
             RenderSettings.ambientMode = AmbientMode.Flat;
             RenderSettings.ambientLight = currentSettings.ambientColor;
             RenderSettings.ambientIntensity = 1f;
-            RenderSettings.fog = false;
+            // Fog is shared across themes and authored in the scene's Lighting
+            // settings. Theme changes must not disable the player's distance haze.
             if (directionalLight != null)
             {
                 directionalLight.intensity = currentSettings.directionalLightIntensity;
@@ -149,6 +150,7 @@ namespace EndlessRollball.Scenery
             Idle,
             FadingOut,
             Covered,
+            Activating,
             WaitingForExit,
             FadingIn
         }
@@ -268,12 +270,21 @@ namespace EndlessRollball.Scenery
                     currentSettings = GetSettings(CurrentTheme);
                     ApplyPresentation();
                     visibleZone = request.DestinationZone;
-                    RevealVisibleZones();
+                    journeyFadeStage = JourneyFadeStage.Activating;
+                    StreamingHoldRequired = true;
+                    break;
+                }
+
+                case JourneyFadeStage.Activating:
+                {
+                    SetJourneyFadeAlpha(1f);
+                    if (!RevealVisibleZones()) return;
+                    StreamingHoldRequired = false;
                     PruneEndlessThemeHistory();
                     if (journeyExitVeil != null)
                         journeyExitVeil.SetActive(false);
                     journeyFadeStage = JourneyFadeStage.WaitingForExit;
-                    Debug.Log($"Theme handoff under cover: zone {visibleZone}, " + $"{CurrentTheme}, camera Z={cameraZ:F1}.", this);
+                    EndlessRollball.Infrastructure.RuntimeLog.Info($"Theme handoff under cover: zone {visibleZone}, " + $"{CurrentTheme}, camera Z={cameraZ:F1}.", this);
                     break;
                 }
 

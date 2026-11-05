@@ -99,7 +99,7 @@ namespace EndlessRollball.Scenery
         internal static EnvironmentTheme SelectStartingTheme(GameMode mode, DifficultyMode difficulty, int seed)
         {
             if (mode == GameMode.Standard)
-                return difficulty == DifficultyMode.Hard ? EnvironmentTheme.Dungeon : EnvironmentTheme.Street;
+                return GameSequenceConfiguration.Current.Order(difficulty)[0];
             var random = new System.Random(unchecked(seed ^ 0x2468ACE));
             return mode == GameMode.Endless ? (EnvironmentTheme)random.Next(3) :
                 FastPacedThemeAtRoll(difficulty, random.Next(100));
@@ -146,8 +146,7 @@ namespace EndlessRollball.Scenery
                     return JourneyWarning("Standard Easy needs at least one Street slot.");
                 journeyKind = JourneyKind.StandardEasy;
                 streetSegmentsForRun = standardEasyStreetSegments;
-                standardOrder.Add(EnvironmentTheme.Street);
-                standardOrder.Add(EnvironmentTheme.Water);
+                standardOrder.AddRange(GameSequenceConfiguration.Current.easyOrder);
                 journeyIdentifierForRun = $"standard-easy-env-v2-s{streetSegmentsForRun}" + $"-t1-r1-z{Number(trackOriginZ)}";
             }
             else if (mode == GameMode.Standard)
@@ -156,9 +155,7 @@ namespace EndlessRollball.Scenery
                     return JourneyWarning("Normal/Hard zones need at least four slots.");
                 journeyKind = JourneyKind.StandardThree;
                 zoneSegmentsForRun = standardThreeThemeSegmentsPerZone;
-                standardOrder.AddRange(difficulty == DifficultyMode.Hard
-                    ? new[] { EnvironmentTheme.Dungeon, EnvironmentTheme.Water, EnvironmentTheme.Street }
-                    : new[] { EnvironmentTheme.Street, EnvironmentTheme.Water, EnvironmentTheme.Dungeon });
+                standardOrder.AddRange(GameSequenceConfiguration.Current.Order(difficulty));
 
                 journeyIdentifierForRun = $"standard-three-env-v2-fixed-n{zoneSegmentsForRun}" + $"-o{(int)standardOrder[0]}" + $"{(int)standardOrder[1]}{(int)standardOrder[2]}" + $"-t2-r1-z{Number(trackOriginZ)}";
             }

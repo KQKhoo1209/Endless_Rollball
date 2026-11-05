@@ -17,6 +17,7 @@ public sealed class GameplayLoadingTransition : MonoBehaviour
     private int renderedFrames, lastRenderedFrame = -1;
     private bool loadingScene, targetReported;
     private double beganAt;
+    private System.Action<string> loadFailed;
 
     private static GameplayLoadingTransition GetOrCreate()
     {
@@ -60,10 +61,11 @@ public sealed class GameplayLoadingTransition : MonoBehaviour
         if (scene.name != "GameplayScene") Destroy(gameObject);
     }
 
-    public static void LoadGameplay()
+    public static void LoadGameplay(System.Action<string> failed = null)
     {
         var transition = GetOrCreate();
         if (transition.loadingScene) return;
+        transition.loadFailed = failed;
         transition.loadingScene = true;
         transition.StartCoroutine(transition.LoadScene());
     }
@@ -73,15 +75,23 @@ public sealed class GameplayLoadingTransition : MonoBehaviour
         yield return Fade(1f, FadeOutSeconds);
         // Let the fully opaque cover render before beginning scene deserialization.
         yield return null;
-        AsyncOperation request = SceneManager.LoadSceneAsync("GameplayScene");
+        AsyncOperation request = null;
+        string error = null;
+        double sceneRequestedAt = Time.realtimeSinceStartupAsDouble;
+        try { request = SceneManager.LoadSceneAsync("GameplayScene"); }
+        catch (System.Exception exception) { error = exception.Message; }
         if (request == null)
         {
-            Debug.LogError("Gameplay scene loading could not be started.");
+            error = error ?? "Gameplay scene loading could not be started. Please retry.";
+            Debug.LogError(error);
             yield return Fade(0f, FadeInSeconds);
+            instance = null;
+            loadFailed?.Invoke(error);
             Destroy(gameObject);
             yield break;
         }
         yield return request;
+        EndlessRollball.Infrastructure.RuntimeLog.Info($"[Loading] Scene request to activation: {Time.realtimeSinceStartupAsDouble-sceneRequestedAt:F3}s.");
         // The generator, not sceneLoaded, owns the readiness/reveal decision.
     }
 
@@ -90,7 +100,7 @@ public sealed class GameplayLoadingTransition : MonoBehaviour
         GetOrCreate().cover.alpha = 1f;
     }
 
-    public static IEnumerator RevealPreparedScene(Camera camera)
+    public static IEnumerator RevealPreparedScene(Camera camera, System.Action beginGameplay = null)
     {
         var transition = GetOrCreate();
         transition.cover.alpha = 1f;
@@ -105,6 +115,9 @@ public sealed class GameplayLoadingTransition : MonoBehaviour
             yield return null;
         if (transition == null) yield break;
         transition.watchedCamera = null;
+        EndlessRollball.Infrastructure.GameplayAssetPreloader.Release();
+        beginGameplay?.Invoke();
+        if (transition == null) yield break;
         yield return transition.Fade(0f, FadeInSeconds);
         if (transition != null) Destroy(transition.gameObject);
     }

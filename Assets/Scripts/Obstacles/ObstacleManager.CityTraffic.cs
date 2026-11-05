@@ -10,6 +10,7 @@ namespace EndlessRollball.Track
             new Dictionary<TrackSegment, CityVehicleEncounter>();
         private readonly Dictionary<TrackSegment, GameObject> activeStopSources =
             new Dictionary<TrackSegment, GameObject>();
+        private readonly Dictionary<TrackSegment,TaskWindow> activeCityWindows = new Dictionary<TrackSegment,TaskWindow>();
         private bool? lastLongitudinalOncoming;
 
         private bool TryPlanTrackAlternative(ThemeObstacleLibrary library, TrackSegment road,
@@ -61,7 +62,8 @@ namespace EndlessRollball.Track
                 (!forceSelection && random.NextDouble() >= .35))
                 return false;
 
-            var candidates = new List<CityVehicleEncounter>();
+            var candidates = cityCandidateBuffer;
+            candidates.Clear();
             if (allowStops && library.RoadsideStops != null)
                 candidates.AddRange(library.RoadsideStops);
             if (allowTraffic && library.LongitudinalTrafficTracks != null)
@@ -86,7 +88,8 @@ namespace EndlessRollball.Track
             // First traffic is oncoming; subsequent successful traffic choices
             // alternate direction. Invalid/missing candidates can still fall back.
             bool preferredOncoming = !lastLongitudinalOncoming.GetValueOrDefault(false);
-            var deferred = new List<CityVehicleEncounter>();
+            var deferred = cityDeferredBuffer;
+            deferred.Clear();
             for (int i = candidates.Count - 1; i >= 0; i--)
                 if (candidates[i] is LongitudinalTrafficEncounter traffic &&
                     traffic.Oncoming != preferredOncoming)
@@ -98,7 +101,7 @@ namespace EndlessRollball.Track
             for (int i = 0; i < candidates.Count; i++)
             {
                 CityVehicleEncounter authored = candidates[i];
-                if (authored == null || authored.FamilyId == planner.LastFamily)
+                if (authored == null || (sharedCandidate != null && authored.gameObject != sharedCandidate) || authored.FamilyId == planner.LastFamily)
                     continue;
                 TrackSegment track = authored.IsMoving ? authored.GetComponent<TrackSegment>() : road;
                 Transform payloadRoot = authored.IsMoving && track != null ? track.VisualRoot : authored.transform;
@@ -240,6 +243,7 @@ namespace EndlessRollball.Track
                 return;
             }
             activeCityVehicles.Add(track, encounter);
+            activeCityWindows[track] = plan.VehicleWindow;
             if (stopSource != null)
             {
                 activeStopSources.Add(track, stopSource);
@@ -273,6 +277,7 @@ namespace EndlessRollball.Track
                     activeStopSources.Remove(track);
                 }
                 activeCityVehicles.Remove(track);
+                activeCityWindows.Remove(track);
             }
         }
 
@@ -282,12 +287,18 @@ namespace EndlessRollball.Track
                 if (value != null) value.SetRunning(!paused);
         }
 
+        private readonly List<CityVehicleEncounter> cityCandidateBuffer = new List<CityVehicleEncounter>();
+        private readonly List<CityVehicleEncounter> cityDeferredBuffer = new List<CityVehicleEncounter>();
+
         private void EndCityVehicles()
         {
             foreach (TrackSegment track in new List<TrackSegment>(activeCityVehicles.Keys))
                 ReleaseCityVehicle(track);
             activeCityVehicles.Clear();
+            activeCityWindows.Clear();
             activeStopSources.Clear();
+            cityCandidateBuffer.Clear();
+            cityDeferredBuffer.Clear();
             lastLongitudinalOncoming = null;
         }
     }

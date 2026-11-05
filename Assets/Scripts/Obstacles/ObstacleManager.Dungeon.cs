@@ -132,12 +132,12 @@ namespace EndlessRollball.Track
             float start=anchor-overlap;
             float landing=anchor+rolling.ClearanceProgress(Radius);
             float recoveryEnd=landing+2f;
-            float firstPosition=anchor+rolling.PositionAtProgress(ballMovement.transform.position.z-anchor,difficulty.ForwardSpeed);
+            float firstPosition=anchor+rolling.PositionAtProgress(PlanningPlayerZ-anchor,difficulty.ForwardSpeed);
             float end=Mathf.Max(recoveryEnd,firstPosition+rolling.AuthoredRadius+1f);
             float passage=planner.PreferredOppositeSide*(difficulty.RoadWidth*.5f-Radius-.15f);
             // Reserve the actual oncoming trajectory on ordinary road, not a repeating approach schedule.
             if(end>limit || !planner.CanReach(index,start,end,passage,safety,LateralSpeed,Acceleration)) return false;
-            if(start-ballMovement.transform.position.z<safety.ForwardSpeed) return false;
+            if(start-PlanningPlayerZ<safety.ForwardSpeed) return false;
             long id=(long)Math.Round(anchor*1000);
             var window=new TaskWindow {LocalIndex=0,EntryZ=start-12f,HazardStartZ=start,LandingStartZ=landing,DeadlineZ=landing+1f,RecoveryEndZ=recoveryEnd};
             float phase=random.Next(2)==0?0f:Mathf.PI;

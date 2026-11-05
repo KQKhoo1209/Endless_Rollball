@@ -32,6 +32,8 @@ namespace EndlessRollball.Track
         [Tooltip("Presentation only. Task counting/calculation still run. Later preparation UI can call SetReducedFeedback.")]
         [SerializeField] private bool reducedFeedback;
 
+        private long displayedDurationSecond = -1;
+        private TMP_Text displayedDurationLabel;
         private GameplayRunController controller;
         private SessionTaskTracker tracker;
         private SessionScore score = new SessionScore(0, 0, 0, 0);
@@ -52,6 +54,7 @@ namespace EndlessRollball.Track
             CacheAuthoredLabels();
             Unsubscribe();
             controller = owner;
+            displayedDurationSecond = -1;
             tracker = tasks;
             tracker.ScoreChanged += RefreshScore;
             RefreshScore();
@@ -63,6 +66,7 @@ namespace EndlessRollball.Track
 
         public void HidePanels()
         {
+            displayedDurationSecond = -1;
             pausePanel.SetActive(false);
             resultPanel.SetActive(false);
             if (gameplayHUD != null) gameplayHUD.SetActive(true);
@@ -79,6 +83,7 @@ namespace EndlessRollball.Track
 
         internal void ShowEndingPresentation()
         {
+            displayedDurationSecond = -1;
             pausePanel.SetActive(false);
             resultPanel.SetActive(false);
             pauseButton.SetActive(false);
@@ -115,9 +120,13 @@ namespace EndlessRollball.Track
             ApplyFeedbackVisibility();
         }
 
-        private void Update()
+        public void RefreshDuration()
         {
-            if (controller == null || hudDurationText == null || resultPanel.activeSelf) return;
+            if (controller == null || hudDurationText == null || controller.State == SessionFlowState.Results) return;
+            long second = TimeSpan.FromSeconds(Math.Max(0d, controller.ActiveDurationSeconds)).Ticks / TimeSpan.TicksPerSecond;
+            if (second == displayedDurationSecond && displayedDurationLabel == hudDurationText) return;
+            displayedDurationSecond = second;
+            displayedDurationLabel = hudDurationText;
             SetData(hudDurationText, FormatDuration(controller.ActiveDurationSeconds));
         }
 

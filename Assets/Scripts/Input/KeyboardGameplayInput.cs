@@ -39,16 +39,15 @@ public sealed class KeyboardGameplayInput : MonoBehaviour, IGameplayInput
             keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed,
             keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed);
 
-        float speedAdjustment = ReadAxis(
-            keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed,
-            keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed);
+        float speed = ReadAxis(
+            keyboard.wKey.isPressed, keyboard.sKey.isPressed);
 
-        return new Vector2(steering, speedAdjustment);
+        return new Vector2(steering, speed);
     }
 
     private static bool WasJumpPressed()
     {
-        bool keyboardJump = Keyboard.current?.spaceKey.wasPressedThisFrame ?? false;
+        bool keyboardJump = Keyboard.current?.upArrowKey.wasPressedThisFrame ?? false;
         bool gamepadJump = Gamepad.current?.buttonSouth.wasPressedThisFrame ?? false;
         return keyboardJump || gamepadJump;
     }

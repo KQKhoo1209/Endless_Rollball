@@ -45,11 +45,21 @@ namespace EndlessRollball.Track
         [Header("Scoring Diagnostics")]
         [SerializeField, Tooltip("Log failed task identities and jump evidence to the Console. Does not change scoring.")]
         private bool logFailedTasks;
+        private readonly List<BoxCollider> floorScanBuffer = new List<BoxCollider>();
         private readonly List<Opportunity> opportunities = new List<Opportunity>();
         private readonly Dictionary<Collider, TrackSegment> floors = new Dictionary<Collider, TrackSegment>();
         private readonly Dictionary<TrackSegment, List<Collider>> trackFloors = new Dictionary<TrackSegment, List<Collider>>();
         private int navigationRequired, navigationSucceeded, jumpsRequired, jumpsSucceeded;
         private bool sessionActive, scoringSuspended;
+        private readonly HashSet<int> eventNavigation = new HashSet<int>();
+        internal void BeginEventNavigation() => eventNavigation.Clear();
+        internal void RecordEventNavigation(int identity, bool succeeded)
+        {
+            if (!sessionActive || runController == null || runController.State != SessionFlowState.SpecialEvent || !eventNavigation.Add(identity)) return;
+            navigationRequired++;
+            if (succeeded) navigationSucceeded++;
+            Publish();
+        }
         private string sessionId;
         private BallMovement subscribedBall;
         private int highestRegisteredIndex = -1;
@@ -78,6 +88,7 @@ namespace EndlessRollball.Track
             Unsubscribe();
             sessionActive = false;
             opportunities.Clear();
+            eventNavigation.Clear();
             floors.Clear();
             trackFloors.Clear();
             navigationRequired = navigationSucceeded = jumpsRequired = jumpsSucceeded = 0;
@@ -113,7 +124,8 @@ namespace EndlessRollball.Track
             if (trackFloors.ContainsKey(track))
                 return;
             var owned = new List<Collider>();
-            foreach (BoxCollider box in track.GetComponentsInChildren<BoxCollider>(true))
+            track.GetComponentsInChildren(true, floorScanBuffer);
+            foreach (BoxCollider box in floorScanBuffer)
             {
                 // These are the authored support objects, never containment walls or scenery.
                 if (!box.isTrigger && box.enabled && (box.name == "FloorCollider" || box.name == "Floor_Takeoff" || box.name == "Floor_Landing"))
@@ -190,7 +202,8 @@ namespace EndlessRollball.Track
         internal void RegisterGap(TrackSegment track, int index, int localIndex = 0, long encounterId = 0, ObstacleManager.TaskWindow window = null)
         {
             BoxCollider takeoff = null, landing = null;
-            foreach (BoxCollider box in track.GetComponentsInChildren<BoxCollider>(true))
+            track.GetComponentsInChildren(true, floorScanBuffer);
+            foreach (BoxCollider box in floorScanBuffer)
             {
                 if (box.name == "Floor_Takeoff")
                     takeoff = box;
@@ -372,7 +385,7 @@ namespace EndlessRollball.Track
                 return;
             task.State = succeeded ? TaskState.Succeeded : TaskState.Failed;
             if (!succeeded && logFailedTasks)
-                Debug.Log($"Scoring failure {task.Identity} ({task.Kind}): {reason}; " +
+                EndlessRollball.Infrastructure.RuntimeLog.Info($"Scoring failure {task.Identity} ({task.Kind}): {reason}; " +
                     $"player Z={PlayerZ:F2}, hazard Z={task.HazardStartZ:F2}, clearance Z={task.LandingStartZ:F2}, " +
                     $"jump accepted={task.AcceptedJump}, airborne observed={task.ObservedAirborne}.", this);
             if (succeeded)
@@ -413,6 +426,13 @@ namespace EndlessRollball.Track
             Publish();
         }
 
+        internal bool IsSpecialEventAreaClear(float minZ, float maxZ)
+        {
+            foreach (Opportunity task in opportunities)
+                if (task.HazardStartZ <= maxZ && task.RecoveryEndZ >= minZ) return false;
+            return true;
+        }
+
         public SessionScore FinalizeSession(SessionOutcome outcome, Collider relatedHazard)
         {
             if (!sessionActive)
@@ -423,7 +443,7 @@ namespace EndlessRollball.Track
             sessionActive = false;
             Unsubscribe();
             Publish();
-            Debug.Log($"Scored session {sessionId}: navigation {navigationSucceeded}/{navigationRequired}, " + $"jump/landing {jumpsSucceeded}/{jumpsRequired}; {SessionScore.RulesId}", this);
+            EndlessRollball.Infrastructure.RuntimeLog.Info($"Scored session {sessionId}: navigation {navigationSucceeded}/{navigationRequired}, " + $"jump/landing {jumpsSucceeded}/{jumpsRequired}; {SessionScore.RulesId}", this);
             return CurrentScore;
         }
 
@@ -479,7 +499,7 @@ namespace EndlessRollball.Track
             return recoveryZ;
         }
 
-        internal bool TryGetRecoveryPoint(float minimumZ, float finishZ, out Vector3 position)
+        internal bool TryGetRecoveryPoint(float minimumZ, float finishZ, out Vector3 position, bool allowClearingPayloads = false, float minimumClearance = 0f)
         {
             position = default;
             float bestZ = float.PositiveInfinity;
@@ -496,8 +516,14 @@ namespace EndlessRollball.Track
                     float z = Mathf.Max(minimumZ, floor.bounds.min.z + radius + .25f);
                     // Never place inside a moving hazard's sweep or another required jump.
                     foreach (Opportunity task in opportunities)
-                        if (z + radius >= task.HazardStartZ - radius && z <= task.RecoveryEndZ + radius)
-                            z = Mathf.Max(z, task.RecoveryEndZ + 1f);
+                        if (z + radius + minimumClearance >= task.HazardStartZ - radius && z <= task.RecoveryEndZ + radius)
+                        {
+                            bool canClear = allowClearingPayloads && task.Hazards.Length > 0 &&
+                                task.Track.GetComponent<BeachBarrierEncounter>() == null &&
+                                task.Track.GetComponent<RoadworksTrackEncounter>() == null &&
+                                task.Track.GetComponent<JunctionTrafficController>() == null;
+                            if (!canClear) z = Mathf.Max(z, task.RecoveryEndZ + 1f);
+                        }
                     if (z >= bestZ || z + radius + .25f > floor.bounds.max.z || z + radius + .5f >= finishZ)
                         continue;
                     float top = float.NegativeInfinity;
@@ -527,12 +553,12 @@ namespace EndlessRollball.Track
             return !float.IsPositiveInfinity(bestZ);
         }
 
-        internal void PrepareRecoveryArrival(float destinationZ)
+        internal void PrepareRecoveryArrival(float destinationZ, float clearThroughZ = float.NegativeInfinity)
         {
             foreach (Opportunity task in opportunities)
             {
                 // Teleporting past a different task is an exclusion, never free success/failure evidence.
-                if (task.HazardStartZ <= destinationZ)
+                if (task.HazardStartZ <= Mathf.Max(destinationZ, clearThroughZ))
                     Cancel(task);
                 task.AcceptedJump = task.ObservedAirborne = false;
             }

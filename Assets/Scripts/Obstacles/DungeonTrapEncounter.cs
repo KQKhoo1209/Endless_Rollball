@@ -5,7 +5,14 @@ namespace EndlessRollball.Track
     public sealed class DungeonTrapEncounter : MonoBehaviour
     {
         public enum TrapKind { Fire, Rubble, SlidingBlock, PillarJump, PillarCollapse }
+        private ParticleSystem[] particleCache;
+        private ParticleSystem[] CachedParticles => particleCache ??
+            (particleCache = GetComponentsInChildren<ParticleSystem>(true));
+        private void OnTransformChildrenChanged() => particleCache = null;
+        private void OnValidate() => particleCache = null;
         [SerializeField] private TrapKind kind;
+        [Tooltip("Side fire permits navigation; full-width fire requires a jump.")]
+        [SerializeField] private bool fireAllowsNavigation;
         [SerializeField] private Rigidbody body;
         [SerializeField] private BoxCollider hazard;
         [SerializeField] private Vector3 settledPosition;
@@ -21,18 +28,18 @@ namespace EndlessRollball.Track
         private bool running, started;
         private float elapsed, triggerZ;
         public TrapKind Kind => kind;
-        public bool RequiredJump => kind == TrapKind.Fire || kind == TrapKind.PillarJump;
+        public bool RequiredJump => (kind == TrapKind.Fire && !fireAllowsNavigation) || kind == TrapKind.PillarJump;
         public string Family => kind==TrapKind.PillarCollapse ? "Dungeon.CollapsedPillar" : "Dungeon." + kind;
         public bool FallsOnApproach => fallsOnApproach;
         public float ApproachLeadSeconds => 2f+(fallsOnApproach?pillarFallSeconds:.8f);
-        public void ConfigureImpact(ParticleSystem dust) {impactDust=dust;pillarFallSeconds=1.4f;}
+        public void ConfigureImpact(ParticleSystem dust) {particleCache=null;impactDust=dust;pillarFallSeconds=1.4f;}
         public BoxCollider Hazard => hazard;
         public Bounds SettledBounds => new Bounds(settledPosition+hazard.center,hazard.size);
         public float PassageX => RequiredJump ? 0 : -Mathf.Sign(SettledBounds.center.x)*1.5f;
         public void ConfigureFall(Vector3 pivot,float angle)
         { fallsOnApproach=true; fallPivot=pivot; standingAngle=angle; }
         public void Configure(TrapKind type, Rigidbody mover, BoxCollider shape, Vector3 initial, Vector3 settled, GameObject marker)
-        { kind=type; body=mover; hazard=shape; initialPosition=initial; settledPosition=settled; warning=marker; }
+        { particleCache=null; kind=type; body=mover; hazard=shape; initialPosition=initial; settledPosition=settled; warning=marker; }
         public void Prepare(BallMovement ball, float maximumSpeed, bool paused)
         {
             player=ball; elapsed=0; started=false;impactPlayed=false;
@@ -48,23 +55,23 @@ namespace EndlessRollball.Track
             hazard.enabled=true;
             triggerZ=transform.position.z+SettledBounds.min.z-maximumSpeed*(ApproachLeadSeconds+2*Time.fixedDeltaTime)-ball.SphereRadius;
             if(warning!=null) warning.SetActive(kind==TrapKind.Fire);
-            foreach(var p in GetComponentsInChildren<ParticleSystem>(true)) p.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
-            if(kind==TrapKind.Fire) foreach(var p in GetComponentsInChildren<ParticleSystem>(true)) p.Play();
+            foreach(var p in CachedParticles) p.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
+            if(kind==TrapKind.Fire) foreach(var p in CachedParticles) p.Play();
             SetRunning(!paused);
         }
         public void SetRunning(bool value)
         {
             running=value;
-            foreach(var p in GetComponentsInChildren<ParticleSystem>(true))
+            foreach(var p in CachedParticles)
                 if(value) { if(p.isPaused) p.Play(); } else if(p.isPlaying) p.Pause();
         }
         private void FixedUpdate()
         {
-            if(!running || player==null || (RequiredJump && !fallsOnApproach)) return;
+            if(!running || player==null || (kind == TrapKind.Fire || (RequiredJump && !fallsOnApproach))) return;
             if(!started && player.transform.position.z>=triggerZ)
             {
                 started=true; if(warning!=null) warning.SetActive(true);
-                foreach(var p in GetComponentsInChildren<ParticleSystem>(true))
+                foreach(var p in CachedParticles)
                     if(impactDust==null || !p.transform.IsChildOf(impactDust.transform)) p.Play();
             }
             if(!started) return;
@@ -101,6 +108,6 @@ namespace EndlessRollball.Track
         }
         private void OnDisable()
         { running=false; started=false; elapsed=0; player=null;
-          foreach(var p in GetComponentsInChildren<ParticleSystem>(true)) p.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear); }
+          foreach(var p in CachedParticles) p.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear); }
     }
 }

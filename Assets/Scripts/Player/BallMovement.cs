@@ -39,6 +39,7 @@ public sealed class BallMovement : MonoBehaviour
     public float JumpSpeed => jumpSpeed;
     public float MaxLateralSpeed => maxLateralSpeed;
     public float SteeringAcceleration => steeringAcceleration;
+    public float ForwardSpeed => baseForwardSpeed;
 
     public void SetRoadCorridor(RoadCorridor value) => corridor = value;
     private void EnforceRoadCorridor()
@@ -95,6 +96,19 @@ public sealed class BallMovement : MonoBehaviour
     {
         if (movementStopped)
             return;
+
+        if (cloudDescent)
+        {
+            Vector3 velocity = ballRigidbody.linearVelocity;
+            velocity.x = 0f;
+            velocity.z = 0f;
+            ballRigidbody.linearVelocity = velocity;
+
+            isGrounded = false;
+            groundCollider = null;
+            return;
+        }
+
         if (finishRolling)
         {
             UpdateFinishRoll();
@@ -188,6 +202,8 @@ public sealed class BallMovement : MonoBehaviour
 
     public void ResetMotion(Vector3 worldPosition, Quaternion worldRotation)
     {
+        cloudDescent = false;
+
         if (ballRigidbody == null)
             ballRigidbody = GetComponent<Rigidbody>();
         // Route planning reads the Transform immediately, before the next
@@ -305,5 +321,17 @@ public sealed class BallMovement : MonoBehaviour
         }
 
         return null;
+    }
+
+    private bool cloudDescent;
+
+    public void SetCloudDescent(bool active)
+    {
+        cloudDescent = active;
+    }
+
+    public GameplayCommand ReadEventCommand()
+    {
+        return gameplayInput.ReadCommand();
     }
 }

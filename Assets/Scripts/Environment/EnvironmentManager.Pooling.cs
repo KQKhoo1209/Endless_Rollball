@@ -12,6 +12,7 @@ namespace EndlessRollball.Scenery
             public GameObject Prefab;
             public GameObject Instance;
             public int ZoneId;
+            public EnvironmentTheme Theme;
             public bool HiddenForTransition;
             public TrackSegment Track;
         }
@@ -72,7 +73,7 @@ namespace EndlessRollball.Scenery
             CapturePresentation();
             ApplyPresentation();
             sceneryReady = true;
-            Debug.Log($"Environment run: {CurrentTheme} | {mode}/{difficulty} | " + $"Seed {trackSeed} | {JourneyIdentifier}", this);
+            EndlessRollball.Infrastructure.RuntimeLog.Info($"Environment run: {CurrentTheme} | {mode}/{difficulty} | " + $"Seed {trackSeed} | {JourneyIdentifier}", this);
         }
 
         public void Attach(TrackSegment segment)
@@ -117,13 +118,14 @@ namespace EndlessRollball.Scenery
                 Prefab = prefab,
                 Instance = instance,
                 ZoneId = slot.ZoneId,
+                Theme = slot.Theme,
                 HiddenForTransition = hidden,
                 Track = segment
             };
             activeScenery.Add(segment, pair);
             if (slot.IsTunnel)
                 RegisterJourneyTunnel(segment, segmentIndex, slot.ZoneId);
-            instance.SetActive(!hidden);
+            instance.SetActive(!hidden && !IsCarrierSceneryHidden(slot.Theme));
             segment.SetPresentationVisible(!hidden);
         }
 
@@ -143,6 +145,7 @@ namespace EndlessRollball.Scenery
 
         public void EndRun()
         {
+            SetBeachSurfPresentation(false);
             runPreparationVersion++;
             sceneryReady = false;
             StreamingHoldRequired = false;
@@ -213,7 +216,7 @@ namespace EndlessRollball.Scenery
             return selected;
         }
 
-        private void RevealVisibleZones()
+        private bool RevealVisibleZones()
         {
             foreach (SceneryPair pair in activeScenery.Values)
             {
@@ -221,10 +224,12 @@ namespace EndlessRollball.Scenery
                     continue;
                 pair.HiddenForTransition = false;
                 if (pair.Instance != null)
-                    pair.Instance.SetActive(true);
+                    pair.Instance.SetActive(!IsCarrierSceneryHidden(pair.Theme));
                 if (pair.Track != null)
                     pair.Track.SetPresentationVisible(true);
+                return false;
             }
+            return true;
         }
 
         private void OnDisable()

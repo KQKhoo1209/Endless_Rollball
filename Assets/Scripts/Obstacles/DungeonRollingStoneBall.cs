@@ -25,6 +25,7 @@ namespace EndlessRollball.Track
         private Quaternion roadRotation, visualRestRotation;
         private float elapsed, radius, ratio, phase, omega, greatestProgress, clearProgress, visibilityTimer, travelLimit;
         private bool cached, prepared, running, finished, presentationVisible = true;
+        private float plannedPassSide;
         public SphereCollider Hazard => stoneCollider;
         public float SidewaysDistance => sidewaysDistance;
         public float AuthoredRadius
@@ -91,7 +92,7 @@ namespace EndlessRollball.Track
             phase=seededPhase;
             travelLimit=Mathf.Max(1f,approachTravel);
             omega=2f*Mathf.PI/Mathf.Max(.5f,sidewaysPeriod);
-            elapsed=0f;finished=false;visibilityTimer=0f;
+            elapsed=0f;finished=false;visibilityTimer=0f;plannedPassSide=0;
             clearProgress=ClearanceProgress(ball!=null?ball.SphereRadius:.5f);
             greatestProgress=player!=null?Vector3.Dot(player.position-origin,forward):0f;
             stoneVisual.localRotation=visualRestRotation;
@@ -106,6 +107,9 @@ namespace EndlessRollball.Track
             UpdateVisibility();
         }
 
+        // A shared encounter reserves a specific opposite-side passage. Keep weaving at
+        // distance, then settle onto the planned side through the collision window.
+        public void SetPlannedPassage(float playerX) => plannedPassSide=-Mathf.Sign(playerX);
         public void SetRunning(bool value) => running=prepared && !finished && value;
         public void SetPresentationVisible(bool value)
         {
@@ -117,7 +121,13 @@ namespace EndlessRollball.Track
         {
             float scaled=greatestProgress*ratio;
             float z=player!=null ? -scaled/(1f+Mathf.Abs(scaled)/travelLimit) : -ratio*elapsed;
-            return origin+roadRotation*new Vector3(Mathf.Sin(elapsed*omega+phase)*sidewaysDistance,0f,z);
+            float lateral=Mathf.Sin(elapsed*omega+phase)*sidewaysDistance;
+            if(player!=null && plannedPassSide!=0)
+            {
+                float hold=1f-Mathf.InverseLerp(clearProgress,clearProgress+4f,Mathf.Abs(greatestProgress));
+                lateral=Mathf.Lerp(lateral,plannedPassSide*sidewaysDistance,Mathf.SmoothStep(0,1,hold));
+            }
+            return origin+roadRotation*new Vector3(lateral,0f,z);
         }
         private void FixedUpdate()
         {
@@ -152,7 +162,7 @@ namespace EndlessRollball.Track
         private void OnDisable()
         {
             running=false;prepared=false;finished=false;elapsed=0f;
-            player=null;generator=null;greatestProgress=0f;
+            player=null;generator=null;greatestProgress=0f;plannedPassSide=0;
             if(!cached) return;
             stoneVisual.localRotation=visualRestRotation;
             stoneCollider.enabled=true;

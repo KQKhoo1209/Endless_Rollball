@@ -92,41 +92,35 @@ namespace EndlessRollball.Track
             }
 
             TrackLaneMask expandedReachable = TrackLaneMaskUtility.ExpandAdjacent(state.ReachableLanes);
-            List<TrackCandidate> compatible = new List<TrackCandidate>(candidates.Count);
-
-            foreach (TrackCandidate candidate in candidates)
-            {
-                if (candidate.Weight <= 0f)
-                {
-                    continue;
-                }
-
-                if (state.PreviousKind == TrackSegmentKind.Gap && candidate.Kind == TrackSegmentKind.Gap)
-                {
-                    continue;
-                }
-
-                if (forceSafeStart && candidate.Kind is not TrackSegmentKind.Empty and not TrackSegmentKind.Tunnel)
-                {
-                    continue;
-                }
-
-                TrackLaneMask reachable = expandedReachable & candidate.EntryLanes & candidate.SafeLanes;
-                if (reachable != TrackLaneMask.None)
-                {
-                    compatible.Add(candidate);
-                }
-            }
-
-            if (compatible.Count == 0)
-            {
-                return default;
-            }
+            bool any = false;
+            for (int i = 0; i < candidates.Count; i++)
+                if (Eligible(candidates[i], state, expandedReachable, forceSafeStart)) { any = true; break; }
+            if (!any) return default;
 
             bool preferObstacle = !forceSafeStart && random.NextDouble() < obstacleProbability;
-            List<TrackCandidate> preferred = compatible.FindAll(candidate => candidate.IsObstacle == preferObstacle);
-            IReadOnlyList<TrackCandidate> selectionPool = preferred.Count > 0 ? preferred : compatible;
-            TrackCandidate selected = WeightedSelect(selectionPool, random);
+            bool hasPreferred = false;
+            for (int i = 0; i < candidates.Count; i++)
+                if (Eligible(candidates[i], state, expandedReachable, forceSafeStart) &&
+                    candidates[i].IsObstacle == preferObstacle) { hasPreferred = true; break; }
+            double total = 0d;
+            TrackCandidate selected = default;
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                TrackCandidate candidate = candidates[i];
+                if (!Eligible(candidate, state, expandedReachable, forceSafeStart) ||
+                    (hasPreferred && candidate.IsObstacle != preferObstacle)) continue;
+                total += candidate.Weight;
+                selected = candidate; // Same last-candidate fallback as the previous weighted selection.
+            }
+            double roll = random.NextDouble() * total;
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                TrackCandidate candidate = candidates[i];
+                if (!Eligible(candidate, state, expandedReachable, forceSafeStart) ||
+                    (hasPreferred && candidate.IsObstacle != preferObstacle)) continue;
+                roll -= candidate.Weight;
+                if (roll <= 0d) { selected = candidate; break; }
+            }
             TrackLaneMask nextReachable = expandedReachable & selected.EntryLanes & selected.SafeLanes;
 
             return new TrackSelectionResult(
@@ -134,25 +128,13 @@ namespace EndlessRollball.Track
                 new TrackSelectionState(nextReachable, selected.Kind));
         }
 
-        private static TrackCandidate WeightedSelect(IReadOnlyList<TrackCandidate> candidates, Random random)
+        private static bool Eligible(TrackCandidate candidate, TrackSelectionState state,
+            TrackLaneMask reachable, bool forceSafeStart)
         {
-            double total = 0d;
-            for (int index = 0; index < candidates.Count; index++)
-            {
-                total += candidates[index].Weight;
-            }
-
-            double roll = random.NextDouble() * total;
-            for (int index = 0; index < candidates.Count; index++)
-            {
-                roll -= candidates[index].Weight;
-                if (roll <= 0d)
-                {
-                    return candidates[index];
-                }
-            }
-
-            return candidates[candidates.Count - 1];
+            return !(candidate.Weight <= 0f) &&
+                !(state.PreviousKind == TrackSegmentKind.Gap && candidate.Kind == TrackSegmentKind.Gap) &&
+                !(forceSafeStart && candidate.Kind is not TrackSegmentKind.Empty and not TrackSegmentKind.Tunnel) &&
+                (reachable & candidate.EntryLanes & candidate.SafeLanes) != TrackLaneMask.None;
         }
     }
 }

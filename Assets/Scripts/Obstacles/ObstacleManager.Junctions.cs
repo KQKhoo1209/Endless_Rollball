@@ -41,7 +41,7 @@ namespace EndlessRollball.Track
             {
                 JunctionTrafficController authored = library.JunctionTracks[
                     (offset + attempt) % library.JunctionTracks.Length];
-                if (authored == null)
+                if (authored == null || (sharedCandidate != null && authored.gameObject != sharedCandidate))
                     continue;
 
                 TrackSegment track = authored.GetComponent<TrackSegment>();
@@ -73,12 +73,13 @@ namespace EndlessRollball.Track
                     traversalDifficulty.ForwardSpeed * Time.fixedDeltaTime * 2f;
 
                 // The early car finishes three metres before its lane centre.
-                if (overlapDistance >= 3f)
-                    continue;
+                bool shared = planner.SharedCandidateValidation;
+                float advance = shared ? JunctionTrafficController.RequiredChallengeAdvance(halfDepth,halfLength,traversalDifficulty.ForwardSpeed,Radius,Time.fixedDeltaTime) : 0f;
+                if ((!shared && overlapDistance >= 3f) || advance > 4f) continue;
 
                 // At earliest overlap, a left-to-right car must already have
                 // cleared the left passage. The opposite direction is symmetric.
-                float progress = Mathf.Clamp01((18f - overlapDistance) / 27f);
+                float progress = Mathf.Clamp01((18f - overlapDistance + advance) / 27f);
                 float nearestEdge = Mathf.Lerp(-12f, 12f, progress) - halfLength;
                 if (nearestEdge <= -1.7f + clearance ||
                     12f - halfLength <= difficulty.Corridor.Width * .5f +
@@ -106,7 +107,7 @@ namespace EndlessRollball.Track
                 };
                 result = new SegmentPlan(track, new List<EncounterPlan>(),
                     index: index, encounterId: identity, junction: authored,
-                    junctionWindow: window, trafficSeed: seed);
+                    junctionWindow: window, trafficSeed: seed, vehiclePosition: shared ? new Vector3(traversalDifficulty.ForwardSpeed,Radius,0) : Vector3.zero);
                 planner.Commit(index, end, safeX, JunctionFamily);
                 return true;
             }
@@ -150,7 +151,7 @@ namespace EndlessRollball.Track
 
             JunctionTrafficController controller = segment.GetComponent<JunctionTrafficController>();
             if (controller == null || ballMovement == null ||
-                !controller.Prepare(ballMovement.transform, plan.TrafficSeed))
+                !controller.Prepare(ballMovement.transform, plan.TrafficSeed, plan.VehiclePosition.x, plan.VehiclePosition.y))
             {
                 Debug.LogError("Could not prepare junction traffic.", segment);
                 return;

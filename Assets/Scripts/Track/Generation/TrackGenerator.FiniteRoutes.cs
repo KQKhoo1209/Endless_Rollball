@@ -7,9 +7,9 @@ namespace EndlessRollball.Track
     public sealed partial class TrackGenerator
     {
         [Header("Finite routes")]
-        [SerializeField, Min(1f)]
+        [SerializeField, HideInInspector]
         private float standardTargetDurationSeconds = 360f;
-        [SerializeField, Min(1f)]
+        [SerializeField, HideInInspector]
         private float fastPacedTargetDurationSeconds = 180f;
         [Tooltip("Hazards and required landings must end this far before the finish gate.")]
         [SerializeField, Min(1f)]
@@ -53,7 +53,7 @@ namespace EndlessRollball.Track
                 return FiniteRouteError("Assign the player Transform.");
             if (difficultyManager == null || !difficultyManager.IsConfigured || difficultyManager.CurrentRun.Mode != currentRun.Mode)
                 return FiniteRouteError("Assign a configured DifficultyManager matching " + "the generator's current difficulty.");
-            float targetSeconds = mode == GameMode.FastPaced ? fastPacedTargetDurationSeconds : standardTargetDurationSeconds;
+            float targetSeconds = GameSequenceConfiguration.Current.TotalSeconds(mode, currentRun.Mode);
             float playerStartZ = player.position.z;
             float speed = difficultyManager.UpdateDistance(0f).ForwardSpeed;
             if (!IsFiniteRouteNumber(startZ) || !IsFiniteRouteNumber(playerStartZ) || !IsFiniteRouteNumber(targetSeconds) || targetSeconds <= 0f || !IsFiniteRouteNumber(speed) || speed <= 0f || finishClearance < 1f || finishRunoffSegments < 1 || minimumFinalThemeSegments < 1)
@@ -74,7 +74,7 @@ namespace EndlessRollball.Track
             // finite task layout from previous continuous layouts.
             finiteRouteIdentifier = $"finite-v4-anchors-m{(int)mode}" + $"-t{FiniteRouteNumber(targetSeconds)}" + $"-s{FiniteRouteNumber(speed)}" + $"-z{FiniteRouteNumber(startZ)}" + $"-p{FiniteRouteNumber(playerStartZ)}" + $"-g{finishSegmentIndex}" + $"-clear{FiniteRouteNumber(finishClearance)}" + $"-r{finishRunoffSegments}" + $"-f{minimumFinalThemeSegments}";
             double nominalSeconds = ((double)finishLineZ - playerStartZ) / speed;
-            Debug.Log($"Finite route: {mode}/{currentRun.Mode}, " + $"target {targetSeconds:F0}s, nominal " + $"{nominalSeconds:F1}s, gate Z={finishLineZ:F1}, " + $"gate index={finishSegmentIndex}, clearance={finishClearance:F1}m, " + $"total tracks={finiteSegmentLimit}. " + "Finish corridor ready.", this);
+            EndlessRollball.Infrastructure.RuntimeLog.Info($"Finite route: {mode}/{currentRun.Mode}, " + $"target {targetSeconds:F0}s, nominal " + $"{nominalSeconds:F1}s, gate Z={finishLineZ:F1}, " + $"gate index={finishSegmentIndex}, clearance={finishClearance:F1}m, " + $"total tracks={finiteSegmentLimit}. " + "Finish corridor ready.", this);
             return true;
         }
 
@@ -83,18 +83,18 @@ namespace EndlessRollball.Track
             return hasFiniteRoute && segmentIndex > finishSegmentIndex && segmentIndex < finiteSegmentLimit;
         }
 
-        private float EncounterReservationLimit(int segmentIndex, float originZ)
+        private float EncounterReservationLimit(int segmentIndex, float originZ, int horizon = 3)
         {
             float limit = hasFiniteRoute ? finishLineZ - finishClearance : float.PositiveInfinity;
             // Long patterns can reserve up to three consecutive ordinary road segments.
-            for (int offset = 0; offset < 3; offset++)
+            for (int offset = 0; offset < horizon; offset++)
             {
                 int index = segmentIndex + offset;
-                if (environmentManager != null && (environmentManager.RequiresClearTrack(index) || environmentManager.IsTransitionSegment(index + 1)))
+                if (IsCarrierReserved(index) || IsCloudEntryBuffer(index) || (environmentManager != null && (environmentManager.RequiresClearTrack(index) || environmentManager.IsTransitionSegment(index + 1))))
                     return Mathf.Min(limit, originZ + offset * TrackSegment.ContractLength);
             }
 
-            return Mathf.Min(limit, originZ + 3f * TrackSegment.ContractLength - 1f);
+            return Mathf.Min(limit, originZ + horizon * TrackSegment.ContractLength - 1f);
         }
 
         private bool FiniteRouteError(string message)

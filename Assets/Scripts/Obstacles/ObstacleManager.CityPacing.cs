@@ -10,9 +10,10 @@ namespace EndlessRollball.Track
         {
             internal TrackSegment Road, Gap;
             internal int Index, Zone;
-            internal bool Blocked, Junction, Traffic, Stops;
+            internal bool Blocked, Junction, Traffic, Stops, Beach;
             internal DifficultySnapshot Difficulty;
             internal float Origin, Limit;
+            internal float SpawnAhead=144f, RecycleBehind=24f;
             internal ThemeObstacleLibrary Library;
             internal Action<int, float, float> RecordEntry;
         }

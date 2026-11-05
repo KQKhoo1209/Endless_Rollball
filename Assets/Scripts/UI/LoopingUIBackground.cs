@@ -4,7 +4,8 @@ using UnityEngine.UI;
 [RequireComponent(typeof(RawImage))]
 public sealed class LoopingUIBackground : MonoBehaviour
 {
-    [SerializeField] private float scrollSpeed = 0.03f;
+    [Range(0f, 0.5f)]
+    [SerializeField] public float scrollSpeed = 0.03f;
 
     private RawImage background;
 

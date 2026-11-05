@@ -11,6 +11,7 @@ namespace EndlessRollball.Scenery
             internal EnvironmentScenerySet Set;
             internal string Error;
             internal bool Completed;
+            internal bool FromPreload;
         }
 
         private readonly Dictionary<string, Entry> entries = new Dictionary<string, Entry>();
@@ -26,11 +27,18 @@ namespace EndlessRollball.Scenery
             }
             if (!entries.TryGetValue(path, out Entry entry))
             {
-                entry = new Entry { Request = Resources.LoadAsync<EnvironmentScenerySet>(path) };
+                bool cached = EndlessRollball.Infrastructure.GameplayAssetPreloader.TryAcquire(path, out ResourceRequest warmed);
+                entry = new Entry { Request = cached ? warmed : Resources.LoadAsync<EnvironmentScenerySet>(path), FromPreload = cached };
                 entries.Add(path, entry);
             }
             if (!entry.Completed && entry.Request.isDone)
             {
+                if (entry.FromPreload && entry.Request.asset == null)
+                {
+                    entry.FromPreload = false;
+                    entry.Request = Resources.LoadAsync<EnvironmentScenerySet>(path);
+                    return false;
+                }
                 entry.Completed = true;
                 entry.Set = entry.Request.asset as EnvironmentScenerySet;
                 entry.Request = null;

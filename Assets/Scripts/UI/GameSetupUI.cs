@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using EndlessRollball.Track;
+using EndlessRollball.Tutorial;
 
 public sealed class GameSetupUI : MonoBehaviour
 {
@@ -102,14 +103,29 @@ public sealed class GameSetupUI : MonoBehaviour
 
         if (!Application.CanStreamedLevelBeLoaded("GameplayScene"))
         {
-            Debug.LogError("Add GameplayScene to the active build scene list.");
+            TutorialSceneTransition.ShowMenuError("Add GameplayScene to the active build scene list, then retry.", StartGame);
+            return;
+        }
+
+        if (!TutorialProgress.IsCompleted)
+        {
+            Time.timeScale = 1f;
+            isLoading = TutorialSceneTransition.Load(TutorialSceneTransition.SceneName, message =>
+            {
+                isLoading = false;
+                TutorialSceneTransition.ShowMenuError(message, StartGame);
+            });
             return;
         }
 
         isLoading = true;
         Time.timeScale = 1f;
         GameSessionSettings.MarkGameplayLoadRequested();
-        Debug.Log($"Starting {GameSessionSettings.SelectedMode} / " + $"{GameSessionSettings.TrackDifficulty}");
-        GameplayLoadingTransition.LoadGameplay();
+        EndlessRollball.Infrastructure.RuntimeLog.Info($"Starting {GameSessionSettings.SelectedMode} / " + $"{GameSessionSettings.TrackDifficulty}");
+        GameplayLoadingTransition.LoadGameplay(message =>
+        {
+            isLoading = false;
+            TutorialSceneTransition.ShowMenuError(message, StartGame);
+        });
     }
 }

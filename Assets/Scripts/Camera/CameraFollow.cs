@@ -16,13 +16,26 @@ public sealed class CameraFollow : MonoBehaviour
     private Vector3 followVelocity;
     [SerializeField, Min(0f)] private float lookAheadDistance = 5f;
 
+    private bool eventFraming;
+    private Vector3 eventExtraOffset;
+    private float eventLookAhead;
+    private Vector3 FollowOffset => offset + (eventFraming ? eventExtraOffset : Vector3.zero);
+    private float FollowLookAhead => eventFraming ? eventLookAhead : lookAheadDistance;
+
+    public void SetEventFraming(bool active, Vector3 extraOffset, float lookAhead)
+    {
+        eventFraming = active;
+        eventExtraOffset = extraOffset;
+        eventLookAhead = lookAhead;
+    }
+
     public void SnapToTarget()
     {
         if (target == null) return;
         followVelocity = Vector3.zero;
-        transform.position = target.position + offset;
+        transform.position = target.position + FollowOffset;
         Vector3 direction = target.position + Vector3.up * lookHeight +
-            Vector3.forward * lookAheadDistance - transform.position;
+            Vector3.forward * FollowLookAhead - transform.position;
         if (direction.sqrMagnitude >= .001f)
             transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
     }
@@ -34,7 +47,7 @@ public sealed class CameraFollow : MonoBehaviour
             return;
         }
 
-        Vector3 desiredPosition = target.position + offset;
+        Vector3 desiredPosition = target.position + FollowOffset;
 
         transform.position = Vector3.SmoothDamp(
             transform.position,
@@ -45,7 +58,7 @@ public sealed class CameraFollow : MonoBehaviour
         Vector3 lookTarget =
             target.position
             + Vector3.up * lookHeight
-            + Vector3.forward * lookAheadDistance;
+            + Vector3.forward * FollowLookAhead;
         Vector3 lookDirection = lookTarget - transform.position;
 
         if (lookDirection.sqrMagnitude < 0.001f)

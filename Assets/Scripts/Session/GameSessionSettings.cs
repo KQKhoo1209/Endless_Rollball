@@ -11,7 +11,9 @@ public enum GameMode
 public static class GameSessionSettings
 {
     public static double? GameplayLoadRequestedAt { get; private set; }
-    public static void MarkGameplayLoadRequested() => GameplayLoadRequestedAt = Time.realtimeSinceStartupAsDouble;
+    public static string GameplayEntryRoute { get; private set; } = "direct";
+    public static void MarkGameplayLoadRequested(string route = "menu")
+    { GameplayEntryRoute = route; GameplayLoadRequestedAt = Time.realtimeSinceStartupAsDouble; }
     // The ? allows null: nothing selected yet.
     public static GameMode? SelectedMode { get; set; }
     public static DifficultyMode? SelectedDifficulty { get; set; }
@@ -29,6 +31,7 @@ public static class GameSessionSettings
     public static void ResetSelection()
     {
         GameplayLoadRequestedAt = null;
+        GameplayEntryRoute = "direct";
         SelectedMode = null;
         SelectedDifficulty = null;
     }

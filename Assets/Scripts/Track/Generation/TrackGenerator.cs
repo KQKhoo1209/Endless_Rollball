@@ -50,6 +50,7 @@ namespace EndlessRollball.Track
         private string effectiveTrackIdentifier;
         public event Action RunResetting;
         public event Action RunPrepared;
+        internal event Func<bool> PrepareSessionForReveal;
         public event Action<string> RunSetupFailed;
         public bool IsRunInitialized => initialized;
         public bool IsRunPrepared { get; private set; }
@@ -78,7 +79,7 @@ namespace EndlessRollball.Track
         }
         private void OnDisable()
         {
-            if (!IsRunPrepared) GameplayLoadingTransition.AbortPreparation();
+            if (!IsRunPrepared || preparation != null) GameplayLoadingTransition.AbortPreparation();
             preparationVersion++;
             if (preparation != null) StopCoroutine(preparation);
             preparation = null;
@@ -98,7 +99,7 @@ namespace EndlessRollball.Track
         private void Start()
         {
             if (logLoadingTimings && GameSessionSettings.GameplayLoadRequestedAt.HasValue)
-                Debug.Log($"[Loading] Gameplay scene Start reached {Time.realtimeSinceStartupAsDouble - GameSessionSettings.GameplayLoadRequestedAt.Value:F3}s after menu Start.", this);
+                EndlessRollball.Infrastructure.RuntimeLog.Info($"[Loading] Gameplay scene Start reached {Time.realtimeSinceStartupAsDouble - GameSessionSettings.GameplayLoadRequestedAt.Value:F3}s after {GameSessionSettings.GameplayEntryRoute} Continue/Start.", this);
             if (!initialized && difficultyManager != null && difficultyManager.IsConfigured)
             {
                 Initialize(difficultyManager.CurrentRun);
@@ -136,6 +137,10 @@ namespace EndlessRollball.Track
 
         public void ResetRun()
         {
+            cloudRoadContinuation = false;
+            ResetBeachSurfReservation();
+            ResetPhoenixLava();
+
             if (!initialized)
             {
                 if (difficultyManager == null || !difficultyManager.IsConfigured)
@@ -177,7 +182,7 @@ namespace EndlessRollball.Track
                 }
             }
             if (logLoadingTimings)
-                Debug.Log($"[Loading] Starting theme ready after {Time.realtimeSinceStartupAsDouble - startedAt:F3}s.", this);
+                EndlessRollball.Infrastructure.RuntimeLog.Info($"[Loading] Starting theme ready after {Time.realtimeSinceStartupAsDouble - startedAt:F3}s.", this);
             if (catalog.RequiresThemeRoadSelection)
             {
                 string roadReason = "Assign the active EnvironmentManager for this themed-road catalogue.";
@@ -257,11 +262,12 @@ namespace EndlessRollball.Track
                     yield break;
                 }
 
-                effectiveTrackIdentifier += "-encounters-v14-dungeon-rolling-stone-6m";
+                effectiveTrackIdentifier += "-encounters-v20-navigation-balance-6m";
             }
 
             if (taskTracker != null)
                 effectiveTrackIdentifier += "-scored-tasks-v4-staged";
+            double initialGenerationAt = Time.realtimeSinceStartupAsDouble;
             while (!HorizonReady)
             {
                 if (version != preparationVersion) yield break;
@@ -277,21 +283,37 @@ namespace EndlessRollball.Track
                 yield return null;
             }
             if (version != preparationVersion) yield break;
+            if (logLoadingTimings)
+                EndlessRollball.Infrastructure.RuntimeLog.Info($"[Loading] Initial generation: {Time.realtimeSinceStartupAsDouble - initialGenerationAt:F3}s ({spawnedCount} segments).", this);
             Camera view = environmentManager != null ? environmentManager.GameplayCamera : Camera.main;
             if (view == null || !view.isActiveAndEnabled)
             {
                 FailPreparation("An active gameplay camera is required before revealing the prepared scene.");
                 yield break;
             }
-            yield return GameplayLoadingTransition.RevealPreparedScene(view);
+            double sessionSetupAt = Time.realtimeSinceStartupAsDouble;
+            if (PrepareSessionForReveal == null || !PrepareSessionForReveal.Invoke())
+            {
+                FailPreparation("Session preparation failed before reveal.");
+                yield break;
+            }
+            if (logLoadingTimings)
+                EndlessRollball.Infrastructure.RuntimeLog.Info($"[Loading] Session setup: {Time.realtimeSinceStartupAsDouble - sessionSetupAt:F3}s; prepared under cover at {Time.realtimeSinceStartupAsDouble - startedAt:F3}s.", this);
+            yield return GameplayLoadingTransition.RevealPreparedScene(view, () =>
+            {
+                if (version != preparationVersion || !initialized) return;
+                IsRunPrepared = true;
+                RunPrepared?.Invoke();
+                if (logLoadingTimings)
+                    EndlessRollball.Infrastructure.RuntimeLog.Info($"[Loading] Movement released at {Time.realtimeSinceStartupAsDouble - startedAt:F3}s after preparation began.", this);
+            });
             if (version != preparationVersion) yield break;
             IsRunPrepared = true;
             preparation = null;
             if (logLoadingTimings)
-                Debug.Log($"[Loading] Initial track, scenery and obstacles ready after {Time.realtimeSinceStartupAsDouble - startedAt:F3}s.", this);
+                EndlessRollball.Infrastructure.RuntimeLog.Info($"[Loading] Reveal completed after {Time.realtimeSinceStartupAsDouble - startedAt:F3}s.", this);
             if (logLoadingTimings && GameSessionSettings.GameplayLoadRequestedAt.HasValue)
-                Debug.Log($"[Loading] Total menu-to-ready: {Time.realtimeSinceStartupAsDouble - GameSessionSettings.GameplayLoadRequestedAt.Value:F3}s.", this);
-            RunPrepared?.Invoke();
+                EndlessRollball.Infrastructure.RuntimeLog.Info($"[Loading] Total menu-to-ready: {Time.realtimeSinceStartupAsDouble - GameSessionSettings.GameplayLoadRequestedAt.Value:F3}s.", this);
         }
 
         public void Reconfigure(DifficultyMode mode, int? seedOverride = null)
@@ -306,7 +328,7 @@ namespace EndlessRollball.Track
 
         public void Tick()
         {
-            if (!IsRunPrepared || generationPaused)
+            if (!IsRunPrepared || (generationPaused && !cloudRoadContinuation && !IsCarrierEventRunning))
                 return;
             RecyclePassedSegments();
             if (player != null && environmentManager != null)
@@ -325,10 +347,12 @@ namespace EndlessRollball.Track
             if (player != null && environmentManager != null)
             {
                 float maxSpeed = difficultyManager.CurrentSnapshot.ForwardSpeed + difficultyManager.CurrentSnapshot.SpeedAdjustmentRange;
-                if (!HorizonReady && !environmentManager.StreamingHoldRequired &&
+                if (!cloudRoadContinuation && !HorizonReady && !environmentManager.StreamingHoldRequired &&
                     player.position.z >= nextSpawnZ - Mathf.Max(TrackSegment.ContractLength * .5f, maxSpeed))
                     environmentManager.CoverForPendingTrack();
-                environmentManager.UpdateJourneyPresentation(player.position.z, HorizonReady);
+
+                if(!cloudRoadContinuation)
+                    environmentManager.UpdateJourneyPresentation(player.position.z, HorizonReady);
                 SetStreamingHold(environmentManager.StreamingHoldRequired);
             }
         }
@@ -344,10 +368,12 @@ namespace EndlessRollball.Track
         private void EnsureTrackAhead()
         {
             float playerZ = player == null ? 0f : player.position.z;
+            double generationStarted = Time.realtimeSinceStartupAsDouble;
             while (nextSpawnZ < playerZ + aheadDistance && (!hasFiniteRoute || spawnedCount < finiteSegmentLimit))
             {
                 if (!SpawnNextSegment(spawnedCount < safeStartingSegments))
                     break;
+                if (Time.realtimeSinceStartupAsDouble - generationStarted >= .002) break;
             }
         }
 
@@ -356,14 +382,18 @@ namespace EndlessRollball.Track
             // Check availability BEFORE planning consumes random choices or reservations.
             if (environmentManager != null && !environmentManager.IsSegmentSceneryReady(spawnedCount))
                 return false;
-            DifficultySnapshot snapshot = difficultyManager != null ? difficultyManager.UpdateDistance(Mathf.Max(0f, player == null ? 0f : player.position.z)) : new DifficultySnapshot(currentRun.Mode, 6f, 3f, 0.25f, 0f, 0f);
+
+            DifficultySnapshot snapshot = cloudRoadContinuation ? cloudRoadDifficulty
+                : difficultyManager != null ? difficultyManager.UpdateDistance(Mathf.Max(0f, player == null ? 0f : player.position.z))
+                    : new DifficultySnapshot(currentRun.Mode, 6f, 3f, .25f, 0f, 0f);
+
             if (hasFiniteRoute && spawnedCount == finishSegmentIndex && nextSpawnZ + TrackSegment.ContractLength <= finishLineZ)
             {
                 finishSegmentIndex++;
                 finiteSegmentLimit++;
             }
-            bool requiresClearTrack = (environmentManager != null &&
-                (environmentManager.RequiresClearTrack(spawnedCount))) || IsFinishCorridor(spawnedCount) || (hasFiniteRoute && spawnedCount >= finishSegmentIndex - 1);
+            bool requiresClearTrack = IsCarrierReserved(spawnedCount) || cloudRoadContinuation || IsCloudEntryBuffer(spawnedCount) || (environmentManager != null && environmentManager.RequiresClearTrack(spawnedCount)) ||
+                IsFinishCorridor(spawnedCount) || (hasFiniteRoute && spawnedCount >= finishSegmentIndex - 1);
             TrackSegment prefab;
             ObstacleManager.SegmentPlan encounter = default;
             if (catalog.RequiresThemeRoadSelection)
@@ -380,14 +410,14 @@ namespace EndlessRollball.Track
                 bool blockEncounter = forceSafeStart || requiresClearTrack || beforeTunnel;
                 float obstacleDistance = Mathf.Max(0f, nextSpawnZ + TrackSegment.ContractLength * 0.5f);
                 DifficultySnapshot obstacleDifficulty = difficultyManager != null ? difficultyManager.EvaluateForDistance(obstacleDistance) : snapshot;
-                if (obstacleManager != null)
+                if (obstacleManager != null && !cloudRoadContinuation && !IsCarrierReserved(spawnedCount))
                 {
                     TrackSegment gap = obstacleManager.GapTracksEnabled ? environmentManager.GetGapTrackForRoad(prefab, obstacleDifficulty) : null;
                     ThemeObstacleLibrary library = environmentManager.GetObstacleLibraryForRoad(prefab);
 
-                    if (library != null && library.CityPacing != null)
+                    if (library != null && (library.SharedPacing != null || library.CityPacing != null))
                     {
-                        if (!obstacleManager.TryTakeCityPlan(spawnedCount, out encounter))
+                        if (!obstacleManager.TryTakeScheduledPlan(spawnedCount, library, out encounter))
                         {
                             var requests = new System.Collections.Generic.List<ObstacleManager.CityPlanningRequest>(8);
                             for (int offset = 0; offset < 8; offset++)
@@ -406,16 +436,19 @@ namespace EndlessRollball.Track
                                     Gap = obstacleManager.GapTracksEnabled ? environmentManager.GetGapTrackForRoad(futureRoad, futureDifficulty) : null,
                                     RecordEntry = environmentManager.RecordRouteEntry,
                                     Index = futureIndex, Zone = environmentManager.EncounterZoneAt(futureIndex), Origin = futureOrigin, Difficulty = futureDifficulty,
-                                    Limit = EncounterReservationLimit(futureIndex, futureOrigin), Library = library,
-                                    Blocked = futureIndex < safeStartingSegments || environmentManager.RequiresClearTrack(futureIndex) ||
-                                        (IsFinishCorridor(futureIndex) || (hasFiniteRoute && futureIndex >= finishSegmentIndex - 1)) || environmentManager.IsTransitionSegment(futureIndex + 1),
+                                    SpawnAhead = aheadDistance, RecycleBehind = recycleBehindDistance,
+                                    Limit = EncounterReservationLimit(futureIndex, futureOrigin, library.SharedPacing != null ? 8 : 3), Library = library,
+                                    Blocked = IsCarrierReserved(futureIndex) || IsCloudEntryBuffer(futureIndex) || futureIndex < safeStartingSegments || environmentManager.RequiresClearTrack(futureIndex) || IsFinishCorridor(futureIndex) ||
+                                        (hasFiniteRoute && futureIndex >= finishSegmentIndex - 1) || environmentManager.IsTransitionSegment(futureIndex + 1),
                                     Junction = environmentManager.CanUseJunctionAt(futureIndex),
                                     Traffic = environmentManager.CanUseCityTrafficAt(futureIndex),
+                                    Beach = environmentManager.CanUseBeachBarrierAt(futureIndex),
                                     Stops = environmentManager.CanUseRoadsideStopAt(futureIndex)
                                 });
                             }
-                            obstacleManager.PlanCityWindow(requests);
-                            obstacleManager.TryTakeCityPlan(spawnedCount, out encounter);
+                            if (library.SharedPacing != null) obstacleManager.PlanSharedWindow(requests);
+                            else obstacleManager.PlanCityWindow(requests);
+                            obstacleManager.TryTakeScheduledPlan(spawnedCount, library, out encounter);
                         }
                     }
                     else
@@ -435,7 +468,7 @@ namespace EndlessRollball.Track
                                 Road=futureRoad,Index=futureIndex,Zone=environmentManager.EncounterZoneAt(futureIndex),
                                 Origin=futureOrigin,Limit=EncounterReservationLimit(futureIndex,futureOrigin),Library=library,
                                 Difficulty=difficultyManager!=null?difficultyManager.EvaluateForDistance(Mathf.Max(0,futureOrigin+12)):snapshot,
-                                Allowed=futureIndex>=safeStartingSegments && !environmentManager.RequiresClearTrack(futureIndex) &&
+                                Allowed= !IsCarrierReserved(futureIndex) && futureIndex >=safeStartingSegments && !environmentManager.RequiresClearTrack(futureIndex) &&
                                     !IsFinishCorridor(futureIndex) && !(hasFiniteRoute && futureIndex>=finishSegmentIndex-1) &&
                                     !environmentManager.IsTransitionSegment(futureIndex+1) && environmentManager.CanUseBeachBarrierAt(futureIndex)
                             });
@@ -451,7 +484,17 @@ namespace EndlessRollball.Track
                         prefab = encounter.Track;
                 }
 
-                // Record only the ACTUAL selected track, never first Empty then Gap.
+                // Replace only the reserved surfing interior.
+                // Boarding and exit sections keep their wooden bridges.
+                if (IsBeachSurfSea(spawnedCount))
+                {
+                    prefab = beachSurfSeaPrefab;
+                }
+                else if (IsPhoenixLava(spawnedCount))
+                {
+                    prefab = phoenixLavaPrefab;
+                }
+
                 UpdateSelectionStateForForcedSegment(prefab);
             }
             else if (requiresClearTrack)
@@ -482,12 +525,29 @@ namespace EndlessRollball.Track
             environmentManager?.RecordRouteEntry(spawnedCount, nextSpawnZ, physicalExitZ);
             instance.transform.SetPositionAndRotation(new Vector3(0f, 0f, rootZ), Quaternion.identity);
             instance.Activate(snapshot);
-            RoadCorridorMarkers markers = instance.GetComponent<RoadCorridorMarkers>();
-            if (markers == null)
-                markers = instance.gameObject.AddComponent<RoadCorridorMarkers>();
-            markers.Configure(instance, difficultyManager, corridorMarkerMaterial);
-            environmentManager?.Attach(instance, spawnedCount);
+
+            if (!IsCarrierInterior(spawnedCount))
+            {
+                RoadCorridorMarkers markers =
+                    instance.GetComponent<RoadCorridorMarkers>();
+
+                if (markers == null)
+                {
+                    markers =
+                        instance.gameObject.AddComponent<RoadCorridorMarkers>();
+                }
+
+                markers.Configure(
+                    instance,
+                    difficultyManager,
+                    corridorMarkerMaterial);
+            }
+
+            // Dungeon lava retains normal scenery; Beach sea omits resort scenery.
+            if (!IsBeachSurfSea(spawnedCount))
+                environmentManager?.Attach(instance, spawnedCount);
             taskTracker?.RegisterTrack(instance);
+
             if (obstacleManager != null)
             {
                 obstacleManager.AttachSegment(instance, encounter, environmentManager, this);
@@ -540,6 +600,24 @@ namespace EndlessRollball.Track
             return false;
         }
 
+        private bool cloudRoadContinuation;
+        private DifficultySnapshot cloudRoadDifficulty;
+
+        internal bool BeginCloudRoadContinuation()
+        {
+            if (!IsRunPrepared || difficultyManager == null)
+                return false;
+
+            cloudRoadDifficulty = difficultyManager.CurrentSnapshot;
+            cloudRoadContinuation = true;
+            return true;
+        }
+
+        internal void EndCloudRoadContinuation()
+        {
+            cloudRoadContinuation = false;
+        }
+
         private void RecyclePassedSegments()
         {
             if (player == null)
@@ -588,6 +666,10 @@ namespace EndlessRollball.Track
 
             pool.Enqueue(active.Instance);
         }
+
+        internal bool UsesSharedObstaclePacing => obstacleManager != null && obstacleManager.UsesSharedObstaclePacing;
+        internal void ProtectRecoveryArrival(float destinationZ,float clearThroughZ) =>
+            obstacleManager?.ProtectRecoveryArrival(destinationZ,clearThroughZ);
 
         private void ReturnAllSegments()
         {

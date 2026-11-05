@@ -10,6 +10,8 @@ namespace EndlessRollball.Track
         private float previousExitX;
         private int lastSegment = -2, consecutive;
         public string LastFamily { get; private set; }
+        // Shared scheduler performs passage/trajectory validation after a candidate is built.
+        internal bool SharedCandidateValidation;
 
         internal EncounterPlanner Copy() => (EncounterPlanner)MemberwiseClone();
         internal void Restore(EncounterPlanner source)
@@ -17,6 +19,7 @@ namespace EndlessRollball.Track
             previousEnd = source.previousEnd; previousExitX = source.previousExitX;
             lastSegment = source.lastSegment; consecutive = source.consecutive;
             LastFamily = source.LastFamily;
+            SharedCandidateValidation = source.SharedCandidateValidation;
         }
 
         public void Reset()
@@ -26,6 +29,7 @@ namespace EndlessRollball.Track
             lastSegment = -2;
             consecutive = 0;
             LastFamily = null;
+            SharedCandidateValidation = false;
         }
 
         public bool Roll(int segment, float probability, DifficultySnapshot difficulty, System.Random random)
@@ -51,6 +55,7 @@ namespace EndlessRollball.Track
         {
             if (endZ < startZ)
                 return false;
+            if (SharedCandidateValidation) return true;
             float recovery = difficulty.RecoverySeconds;
             if (GameSessionSettings.SelectedMode == GameMode.FastPaced)
                 recovery = Mathf.Max(.8f, recovery * .8f);

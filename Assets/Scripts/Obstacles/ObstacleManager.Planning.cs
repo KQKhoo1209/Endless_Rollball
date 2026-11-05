@@ -69,14 +69,10 @@ namespace EndlessRollball.Track
             {
                 get
                 {
-                    if (VehicleWindow != null)
-                        return VehicleWindow.RecoveryEndZ;
-                    if (JunctionWindow != null)
-                        return JunctionWindow.RecoveryEndZ;
-                    if (RoadworksWindow != null)
-                        return RoadworksWindow.RecoveryEndZ;
-
                     float end = float.NegativeInfinity;
+                    if (VehicleWindow != null) end = Mathf.Max(end, VehicleWindow.RecoveryEndZ);
+                    if (JunctionWindow != null) end = Mathf.Max(end, JunctionWindow.RecoveryEndZ);
+                    if (RoadworksWindow != null) end = Mathf.Max(end, RoadworksWindow.RecoveryEndZ);
 
                     if (Encounters != null)
                         foreach (EncounterPlan plan in Encounters)
@@ -91,6 +87,12 @@ namespace EndlessRollball.Track
         {
             if (!ready || !isActiveAndEnabled || road == null || blocked || index < 0 || road.Kind != TrackSegmentKind.Empty)
                 return default;
+
+            if (library != null && library.SharedPacing != null)
+                return PlanSharedSegment(new CityPlanningRequest { Road=road, Gap=gap, Index=index,
+                    Origin=originZ, Limit=reservationLimit, Difficulty=difficulty, Library=library,
+                    Zone=planningZone, Junction=allowJunction, Traffic=allowCityTraffic, Stops=allowStops,
+                    Beach=allowBeachBarriers });
 
             UseFixedThemeLibrary(library);
 
@@ -178,21 +180,21 @@ namespace EndlessRollball.Track
             TrackGenerator generator = null)
         {
             if (plan.BeachBarrier != null)
-            { AttachBeachBarrier(segment, plan); return; }
+            { AttachBeachBarrier(segment, plan); AttachSharedExtras(segment, plan, generator); return; }
             if (plan.CityVehicle != null)
             {
                 AttachCityVehicle(segment, plan, environment, generator);
-                return;
+                AttachSharedExtras(segment, plan, generator); return;
             }
             if (plan.Junction != null)
             {
                 AttachJunction(segment, plan);
-                return;
+                AttachSharedExtras(segment, plan, generator); return;
             }
             if (plan.Roadworks != null)
             {
                 AttachRoadworks(segment, plan);
-                return;
+                AttachSharedExtras(segment, plan, generator); return;
             }
 
             if (plan.Encounters != null)

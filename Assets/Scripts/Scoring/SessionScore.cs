@@ -5,7 +5,7 @@ namespace EndlessRollball.Track
     // Immutable in-memory result. No persistence or coin balance mutation lives here.
     public sealed class SessionScore
     {
-        public const string RulesId = "task-score-v3-observed-clearance-supported-landing-60-40";
+        public const string RulesId = "task-score-v4-event-navigation-60-40";
         public int SteeringTaskCount { get; }
         public int SuccessfulSteeringTaskCount { get; }
         public int RequiredJumpOpportunityCount { get; }

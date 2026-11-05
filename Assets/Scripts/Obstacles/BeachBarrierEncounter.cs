@@ -4,6 +4,11 @@ namespace EndlessRollball.Track
     [DisallowMultipleComponent, RequireComponent(typeof(TrackSegment))]
     public sealed class BeachBarrierEncounter : MonoBehaviour
     {
+        private ParticleSystem[] particleCache;
+        private ParticleSystem[] CachedParticles => particleCache ??
+            (particleCache = GetComponentsInChildren<ParticleSystem>(true));
+        private void OnTransformChildrenChanged() => particleCache = null;
+        private void OnValidate() => particleCache = null;
         [SerializeField] private bool explosive;
         [SerializeField] private Transform rollerVisual;
         [SerializeField] private Rigidbody rollerBody;
@@ -32,7 +37,7 @@ namespace EndlessRollball.Track
         public string Family => explosive ? "Beach.ExplosiveRoller" : "Beach.RollingBarrier";
         public void Configure(bool isExplosive, Transform visual, Rigidbody body, BoxCollider shape,
             GameObject patch, ParticleSystem[] flames, ParticleSystem[] explosion, ParticleSystem[] edges, BoxCollider sensor = null)
-        { explosive=isExplosive; rollerVisual=visual; rollerBody=body; rollerCollider=shape;
+        { particleCache=null; explosive=isExplosive; rollerVisual=visual; rollerBody=body; rollerCollider=shape;
           deckPatch=patch; warning=flames; burst=explosion; edgeFire=edges; fallSensor=sensor; }
         public void Prepare(BallMovement player, float maximumSpeed, bool paused, SessionTaskTracker scoring = null)
         {
@@ -49,14 +54,14 @@ namespace EndlessRollball.Track
             rollerBody.position=transform.TransformPoint(new Vector3(0,explosive?.55f:.3f,22f));
             rollerBody.rotation=transform.rotation;
             rollerVisual.localRotation=Quaternion.identity;
-            foreach(var p in GetComponentsInChildren<ParticleSystem>(true)) p.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
+            foreach(var p in CachedParticles) p.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
             foreach(var p in warning) p.Play(true);
             SetRunning(!paused);
         }
         public void SetRunning(bool value)
         {
             running=value;
-            foreach(var p in GetComponentsInChildren<ParticleSystem>(true))
+            foreach(var p in CachedParticles)
                 if(value) { if(p.isPaused) p.Play(true); } else if(p.isPlaying) p.Pause(true);
         }
         private void FixedUpdate()
@@ -84,6 +89,6 @@ namespace EndlessRollball.Track
         private void OnDisable()
         { running=false; ball=null; exploded=false; elapsed=0; tracker=null;
           if(deckPatch!=null) deckPatch.SetActive(true);
-          foreach(var p in GetComponentsInChildren<ParticleSystem>(true)) p.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear); }
+          foreach(var p in CachedParticles) p.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear); }
     }
 }

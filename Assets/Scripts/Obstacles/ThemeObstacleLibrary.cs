@@ -32,6 +32,28 @@ namespace EndlessRollball.Track
             public Vector2 hardSeconds = new Vector2(2.5f, 3f);
             [Min(0f)] public float breathingSeconds = 1f;
         }
+        [Serializable]
+        public sealed class SharedPacingSettings
+        {
+            [Min(1)] public int minimumFamilyAppearances = 3;
+            public Vector2 easySeconds = new Vector2(3f, 3.5f);
+            public Vector2 normalSeconds = new Vector2(1.6f, 2f);
+            public Vector2 hardSeconds = new Vector2(.2f, .3f);
+            [Tooltip("Endless starting interval, independent of Easy tuning.")]
+            public Vector2 endlessMinimumSeconds = new Vector2(2f, 2f);
+            [Tooltip("Endless progression endpoint, independent of the Hard-only rush setting.")]
+            public Vector2 endlessMaximumSeconds = new Vector2(.4f, .6f);
+            [Tooltip("Preferred navigation share of decision rows, including gaps as jumps. Zero retains family-only selection. Falls back when the preferred action cannot fit.")]
+            [Range(0f, 1f)] public float navigationShare;
+            [Tooltip("Extra passage width beyond the ball diameter.")]
+            public Vector3 passageExtraWidth = new Vector3(.6f, .4f, .2f);
+        }
+        [Header("Shared decision pacing (all themes)")]
+        [SerializeField] private bool useSharedPacing;
+        [SerializeField] private SharedPacingSettings sharedPacing = new SharedPacingSettings();
+        public SharedPacingSettings SharedPacing => useSharedPacing ? sharedPacing : null;
+
+        [Header("Legacy City pacing (shared pacing takes priority)")]
         [SerializeField] private bool useCityPacing;
         [SerializeField] private PacingSettings cityPacing = new PacingSettings();
         public PacingSettings CityPacing => useCityPacing ? cityPacing : null;

@@ -60,6 +60,7 @@ namespace EndlessRollball.Track
             public DungeonRollingStoneBall RollingStone;
             public DungeonRollingStoneBall RollingStoneSource;
             public Collider[] Colliders;
+            public float PlannedStart, PlannedEnd;
             public bool Visible = true;
         }
 
@@ -205,6 +206,7 @@ namespace EndlessRollball.Track
 
             runGapShare = Mathf.Clamp01(gapShareWithinJump);
             planner.Reset();
+            ResetSharedPacing();
             ResetCityPacing();
             ResetBeachPlanning();
             ResetDungeonPlanning();
@@ -299,7 +301,13 @@ namespace EndlessRollball.Track
                     pair.Motion.SetRunning(!motionPaused);
 
                 if(pair.Dungeon!=null) pair.Dungeon.Prepare(ballMovement, placement.Speed, motionPaused);
-                if(pair.RollingStone!=null) pair.RollingStone.Prepare(ballMovement, placement.Speed, placement.Phase, motionPaused, generator, pair.RollingStoneSource);
+                if(pair.RollingStone!=null)
+                {
+                    pair.RollingStone.Prepare(ballMovement, placement.Speed, placement.Phase, motionPaused, generator, pair.RollingStoneSource);
+                    if(UsesSharedObstaclePacing) pair.RollingStone.SetPlannedPassage(plan.ExitX);
+                }
+                pair.PlannedStart = plan.Window(placement.TaskIndex)?.HazardStartZ ?? instance.transform.position.z;
+                pair.PlannedEnd = plan.Window(placement.TaskIndex)?.RecoveryEndZ ?? plan.EndZ;
                 pairs.Add(pair);
                 CombinedObstacleEncounter combined = instance.GetComponent<CombinedObstacleEncounter>();
 
@@ -397,6 +405,7 @@ namespace EndlessRollball.Track
             runVersion = unchecked(runVersion + 1);
             runGapShare = 0f;
             planner.Reset();
+            ResetSharedPacing();
             ResetCityPacing();
             ResetBeachPlanning();
             ResetDungeonPlanning();

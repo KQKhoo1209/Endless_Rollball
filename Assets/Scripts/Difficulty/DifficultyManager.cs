@@ -30,7 +30,7 @@ namespace EndlessRollball.Track
 
             DifficultyMode selectedDifficulty = GameSessionSettings.TrackDifficulty;
             Configure(selectedDifficulty);
-            Debug.Log($"Gameplay setup: {GameSessionSettings.SelectedMode} / " + $"{selectedDifficulty}", this);
+            EndlessRollball.Infrastructure.RuntimeLog.Info($"Gameplay setup: {GameSessionSettings.SelectedMode} / " + $"{selectedDifficulty}", this);
         }
 
         private void Update()

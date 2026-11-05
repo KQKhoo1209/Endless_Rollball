@@ -41,6 +41,7 @@ namespace EndlessRollball.Track
                         library.CombinedEncounters.Length];
 
                 if (encounter == null ||
+                    (sharedCandidate != null && encounter.gameObject != sharedCandidate) ||
                     string.IsNullOrWhiteSpace(encounter.FamilyId) ||
                     encounter.FamilyId == planner.LastFamily ||
                     encounter.JumpHazards == null ||

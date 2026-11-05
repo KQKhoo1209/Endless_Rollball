@@ -73,6 +73,14 @@ namespace EndlessRollball.Scenery
 #if UNITY_EDITOR
             if(useReviewThemeOverride) mode=GameMode.FastPaced;
 #endif
+            if(mode==GameMode.Standard) {
+                var manager=FindFirstObjectByType<DifficultyManager>();
+                if(manager!=null && manager.IsConfigured) {
+                    float speed=manager.UpdateDistance(0f).ForwardSpeed;
+                    int slots=Mathf.Max(4,Mathf.RoundToInt(GameSequenceConfiguration.Current.ThemeSeconds(mode,difficulty)*speed/24f)-1);
+                    standardEasyStreetSegments=slots; standardThreeThemeSegmentsPerZone=slots;
+                }
+            }
             if (!journey.ConfigureJourney(mode, difficulty, seed, origin, CurrentTheme, standardEasyStreetSegments, standardThreeThemeSegmentsPerZone, endlessSegmentsPerZone))
             {
                 Debug.LogWarning(journey.Error, this);

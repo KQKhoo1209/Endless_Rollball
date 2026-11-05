@@ -41,6 +41,7 @@ namespace EndlessRollball.Track
         private Transform player;
         private bool prepared;
         private bool running;
+        private float challengeAdvance, earlyClearLead=3f;
         private Light[] warningLights = Array.Empty<Light>();
 
         public Transform TrafficRoot => trafficRoot;
@@ -49,6 +50,13 @@ namespace EndlessRollball.Track
         public static float PlannedSafePassage(int seed)
         {
             return new System.Random(seed).Next(2) == 0 ? 1.7f : -1.7f;
+        }
+
+        public static float RequiredChallengeAdvance(float halfDepth,float halfLength,float speed,float radius,float step)
+        {
+            float clearance=radius+.15f;
+            float overlap=halfDepth+clearance+speed*step*2f;
+            return Mathf.Max(0,(12f+halfLength-1.7f+clearance)*27f/24f-18f+overlap+.15f);
         }
 
         public Collider[] GetTrafficColliders()
@@ -85,7 +93,7 @@ namespace EndlessRollball.Track
             SetWarning(false);
         }
 
-        public bool Prepare(Transform playerTransform, int seed)
+        public bool Prepare(Transform playerTransform, int seed, float maximumSpeed = 0f, float playerRadius = .5f)
         {
             ClearTraffic();
             warningLights = GetComponentsInChildren<Light>(true);
@@ -138,6 +146,23 @@ namespace EndlessRollball.Track
                 challengeLane != 1,
                 "FarLane_LeftToRight");
 
+            challengeAdvance=0f;earlyClearLead=3f;
+            if(maximumSpeed>0)
+            {
+                float halfDepth=0,halfLength=0;
+                foreach(var car in cars)
+                foreach(var shape in car.Root.GetComponentsInChildren<BoxCollider>(true))
+                    for(int corner=0;corner<8;corner++)
+                    {
+                        Vector3 local=transform.InverseTransformPoint(shape.transform.TransformPoint(shape.center+Vector3.Scale(shape.size*.5f,
+                            new Vector3((corner&1)==0?-1:1,(corner&2)==0?-1:1,(corner&4)==0?-1:1))));
+                        Vector3 carLocal=transform.InverseTransformPoint(car.Root.transform.position);
+                        halfLength=Mathf.Max(halfLength,Mathf.Abs(local.x-carLocal.x));
+                        halfDepth=Mathf.Max(halfDepth,Mathf.Abs(local.z-car.LaneZ));
+                    }
+                challengeAdvance=RequiredChallengeAdvance(halfDepth,halfLength,maximumSpeed,playerRadius,Time.fixedDeltaTime);
+                earlyClearLead=Mathf.Max(3f,halfDepth+playerRadius+.15f+maximumSpeed*Time.fixedDeltaTime*2f+.25f);
+            }
             SafePassageX = challengeLane == 0 ? 1.7f : -1.7f;
 
             prepared = true;
@@ -218,13 +243,13 @@ namespace EndlessRollball.Track
                 {
                     // This vehicle clears three metres before
                     // the player reaches its crossing lane.
-                    finishZ = car.LaneZ - 3f;
+                    finishZ = car.LaneZ - earlyClearLead;
                     startZ = finishZ - 24f;
                 }
                 else
                 {
-                    startZ = car.LaneZ - 18f;
-                    finishZ = car.LaneZ + 9f;
+                    startZ = car.LaneZ - 18f - challengeAdvance;
+                    finishZ = car.LaneZ + 9f - challengeAdvance;
                 }
 
                 float candidate = Mathf.InverseLerp(

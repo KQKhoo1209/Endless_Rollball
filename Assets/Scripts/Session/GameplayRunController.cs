@@ -21,7 +21,8 @@ namespace EndlessRollball.Track
         Results,
         SetupError,
         Recovering,
-        Streaming
+        Streaming,
+        SpecialEvent
     }
 
     // Temporary in-memory end data, NOT the persisted Chapter 4 SessionSummary.
@@ -47,7 +48,7 @@ namespace EndlessRollball.Track
         }
     }
 
-    [DisallowMultipleComponent]
+    [DisallowMultipleComponent, RequireComponent(typeof(GameSequenceCoordinator))]
     public sealed class GameplayRunController : MonoBehaviour
     {
         [SerializeField]
@@ -92,7 +93,11 @@ namespace EndlessRollball.Track
 
         public event Action Completed;
         public DifficultyMode TrackDifficulty => trackGenerator.CurrentDifficulty;
-        public double ActiveDurationSeconds => activeSeconds + (State == SessionFlowState.Running ? Math.Max(0d, Time.timeAsDouble - activeIntervalStart) : 0d);
+        internal BallMovement PlayerBall => ballMovement;
+        internal TrackGenerator Generator => trackGenerator;
+        internal SessionTaskTracker Tasks => taskTracker;
+        public double ActiveDurationSeconds => activeSeconds + (State == SessionFlowState.Running ? Math.Max(0d, Time.timeAsDouble - activeIntervalStart)
+                : State == SessionFlowState.SpecialEvent && physicalSpecialEvent ? Math.Max(0d, Time.timeAsDouble - specialEventStartedAt) : 0d);
 
         private TrackGenerator subscribedGenerator;
         private GameObject finishGateInstance;
@@ -120,6 +125,26 @@ namespace EndlessRollball.Track
         private float respawnFlashElapsed;
         private Renderer[] respawnRenderers = Array.Empty<Renderer>();
         private bool[] rendererEnabledBeforeFlash = Array.Empty<bool>();
+        private bool physicalSpecialEvent;
+        private bool pausedCarrierEvent;
+
+        internal void SetWhaleCameraFraming(bool active, Vector3 extraOffset, float lookAhead) =>
+            SetCarrierCameraFraming(active, extraOffset, lookAhead);
+
+        internal void SetCarrierCameraFraming(bool active, Vector3 extraOffset, float lookAhead)
+        {
+            if (gameplayCameraFollow is CameraFollow follow)
+                follow.SetEventFraming(active, extraOffset, lookAhead);
+        }
+        private double specialEventStartedAt;
+        public float easyPadWindowStart = 75f;
+        public float easyPadTargetTime = 82.5f;
+        public float easyPadWindowEnd = 90f;
+        public float easyBeachTransitionTime = 180f;
+
+        public float postCloudRestDistance = 20f;
+        public float firstObstacleDeadlineDistance = 40f;
+
         private enum FinishPhase
         {
             None,
@@ -164,7 +189,8 @@ namespace EndlessRollball.Track
 
             if (Keyboard.current?.escapeKey.wasPressedThisFrame ?? false)
             {
-                if (State == SessionFlowState.Running || State == SessionFlowState.Streaming)
+                if (State == SessionFlowState.Running || State == SessionFlowState.Streaming ||
+                    (State == SessionFlowState.SpecialEvent && physicalSpecialEvent))
                     PauseSession();
                 else if (State == SessionFlowState.Paused)
                     ResumeSession();
@@ -173,6 +199,7 @@ namespace EndlessRollball.Track
 
         private void LateUpdate()
         {
+            sessionUI?.RefreshDuration();
             if(State==SessionFlowState.Ending && burnEnding)
             {
                 float elapsed=(float)(Time.unscaledTimeAsDouble-burnEndingStartedAt);
@@ -204,15 +231,31 @@ namespace EndlessRollball.Track
                     CompleteRecovery();
             }
 
-            // All input-provider Updates have finished before this drain.
-            if (ballMovement != null && (State != SessionFlowState.Running || Time.frameCount <= discardInputThroughFrame))
+            bool playerControlsActive =
+                State == SessionFlowState.Running ||
+                (State == SessionFlowState.SpecialEvent && physicalSpecialEvent);
+
+            if (ballMovement != null &&
+                (!playerControlsActive ||
+                 Time.frameCount <= discardInputThroughFrame))
+            {
                 ballMovement.DiscardBufferedInput();
+            }
         }
 
         private bool loadingHold;
         private void HandleStreamingHold(bool hold)
         {
             loadingHold = hold;
+            if (State == SessionFlowState.SpecialEvent && physicalSpecialEvent &&
+                trackGenerator.IsCarrierEventRunning)
+            {
+                // Keep the carrier state while streaming; scaled flight/hazard clocks
+                // stop with physics, and the generator can finish filling the horizon.
+                if (hold) HoldClockAndCamera();
+                else ReleaseClockAndCamera();
+                return;
+            }
             if (hold && State == SessionFlowState.Running)
             {
                 CaptureActiveInterval();
@@ -231,9 +274,19 @@ namespace EndlessRollball.Track
 
         public void PauseSession()
         {
-            if (State != SessionFlowState.Running && State != SessionFlowState.Streaming)
+            bool carrierActive = State == SessionFlowState.SpecialEvent &&
+                physicalSpecialEvent;
+            if (State != SessionFlowState.Running && State != SessionFlowState.Streaming &&
+                !carrierActive)
                 return;
-            if (State == SessionFlowState.Running)
+            pausedCarrierEvent = carrierActive;
+            if (carrierActive)
+            {
+                // Commit this interval so the paused HUD retains event time.
+                activeSeconds += Math.Max(0d, Time.timeAsDouble - specialEventStartedAt);
+                specialEventStartedAt = Time.timeAsDouble;
+            }
+            else if (State == SessionFlowState.Running)
             {
                 taskTracker.ObservePlayer();
                 CaptureActiveInterval();
@@ -247,6 +300,51 @@ namespace EndlessRollball.Track
         // Do not stop/reset the Rigidbody: its exact pose/velocity is retained.
         }
 
+        internal bool TryBeginSpecialEvent(bool keepPhysicsRunning = false, bool allowRespawnFlashing = false)
+        {
+            if (State != SessionFlowState.Running || (respawnFlashing && !allowRespawnFlashing))
+                return false;
+
+            if (allowRespawnFlashing && respawnFlashing)
+                StopRespawnFlash();
+
+            taskTracker.ObservePlayer();
+            CaptureActiveInterval();
+
+            specialEventStartedAt = Time.timeAsDouble;
+
+            physicalSpecialEvent = keepPhysicsRunning;
+            State = SessionFlowState.SpecialEvent;
+
+            taskTracker.BeginEventNavigation();
+            taskTracker.SetScoringSuspended(true);
+            trackGenerator.SetGenerationPaused(true);
+
+            if (!keepPhysicsRunning)
+                HoldClockAndCamera();
+
+            return true;
+        }
+
+        internal void EndSpecialEvent(double playedSeconds)
+        {
+            if (State != SessionFlowState.SpecialEvent) return;
+            double eventSeconds = physicalSpecialEvent
+                ? Math.Max(0d, Time.timeAsDouble - specialEventStartedAt)
+                : Math.Max(0d, Math.Min(45d, playedSeconds));
+
+            physicalSpecialEvent = false;
+            activeSeconds += eventSeconds;
+            taskTracker.SetScoringSuspended(false);
+            if (!loadingHold) ReleaseClockAndCamera();
+            ballMovement.DiscardBufferedInput();
+            discardInputThroughFrame = Time.frameCount;
+            if (gameplayCameraFollow is CameraFollow follow) follow.SnapToTarget();
+            activeIntervalStart = Time.timeAsDouble;
+            State = loadingHold ? SessionFlowState.Streaming : SessionFlowState.Running;
+            trackGenerator.SetGenerationPaused(false);
+        }
+
         public void ResumeSession()
         {
             if (State != SessionFlowState.Paused)
@@ -254,6 +352,15 @@ namespace EndlessRollball.Track
             ballMovement.DiscardBufferedInput();
             discardInputThroughFrame = Time.frameCount;
             sessionUI.HidePanels();
+            if (pausedCarrierEvent)
+            {
+                pausedCarrierEvent = false;
+                specialEventStartedAt = Time.timeAsDouble;
+                State = SessionFlowState.SpecialEvent;
+                trackGenerator.SetGenerationPaused(true);
+                if (!loadingHold) ReleaseClockAndCamera();
+                return;
+            }
             if (!loadingHold) ReleaseClockAndCamera();
             activeIntervalStart = Time.timeAsDouble;
             State = loadingHold ? SessionFlowState.Streaming : SessionFlowState.Running;
@@ -338,7 +445,9 @@ namespace EndlessRollball.Track
 
         private void CompleteRecovery()
         {
-            if (!taskTracker.TryGetRecoveryPoint(recoveryMinimumZ, trackGenerator.FinishLineZ, out Vector3 position))
+            bool sharedPacing = trackGenerator.UsesSharedObstaclePacing;
+            float recoveryClearance = sharedPacing ? ballMovement.ForwardSpeed * 1.25f : 0f;
+            if (!taskTracker.TryGetRecoveryPoint(recoveryMinimumZ, trackGenerator.FinishLineZ, out Vector3 position, sharedPacing, recoveryClearance))
             {
                 FailSetup("No safe generated road support after the failed challenge; recovery stopped.");
                 return;
@@ -348,7 +457,8 @@ namespace EndlessRollball.Track
             ballBurn?.Stop();
             burnRecovering=false;
             burnEnding=false;
-            taskTracker.PrepareRecoveryArrival(position.z);
+            taskTracker.PrepareRecoveryArrival(position.z, position.z + recoveryClearance);
+            if (sharedPacing) trackGenerator.ProtectRecoveryArrival(position.z, position.z + recoveryClearance);
             ReleaseClockAndCamera();
             ballMovement.ResetMotion(position, Quaternion.identity);
             ballMovement.DiscardBufferedInput();
@@ -359,7 +469,7 @@ namespace EndlessRollball.Track
             State = SessionFlowState.Running;
             trackGenerator.SetGenerationPaused(false);
             BeginRespawnFlash();
-            Debug.Log($"Finite session recovered after failed challenge at Z={position.z:F2}; scores and seed retained.", this);
+            EndlessRollball.Infrastructure.RuntimeLog.Info($"Finite session recovered after failed challenge at Z={position.z:F2}; scores and seed retained.", this);
         }
 
         private void BeginRespawnFlash()
@@ -449,7 +559,7 @@ namespace EndlessRollball.Track
             EndInfo = new SessionEndInfo(sessionId, outcome, activeSeconds, trackGenerator.CurrentSeed, trackGenerator.TrackIdentifier, score, trackGenerator.HasFiniteRoute ? (double? )trackGenerator.PlannedRouteDurationSeconds : null);
             // 7C-1B will insert short, unscaled failure feedback HERE.
             // The immutable ending/duration already exist; do not reset the route.
-            Debug.Log($"Session ended: {EndInfo.SessionId} | {outcome} | active={activeSeconds:F2}s", this);
+            EndlessRollball.Infrastructure.RuntimeLog.Info($"Session ended: {EndInfo.SessionId} | {outcome} | active={activeSeconds:F2}s", this);
             if (outcome == SessionOutcome.Completed)
             {
                 sessionUI.ShowEndingPresentation();
@@ -571,40 +681,47 @@ namespace EndlessRollball.Track
             HideFinishGate();
         }
 
-        private void HandleRunPrepared()
+        private bool PrepareSessionForReveal()
         {
-            if (!started || !isActiveAndEnabled || trackGenerator == null || !trackGenerator.IsRunPrepared || State == SessionFlowState.SetupError)
-                return;
+            if (!started || !isActiveAndEnabled || trackGenerator == null || State == SessionFlowState.SetupError)
+                return false;
             if (initialRunStarted)
             {
                 FailSetup("A new session must not reuse this controller's ended run.");
-                return;
+                return false;
             }
 
             if (taskTracker != null && taskTracker.HasRegistrationErrors)
             {
                 FailSetup("A scored challenge could not be registered; review its geometry and Console.");
-                return;
+                return false;
             }
 
             if (sessionUI == null || !sessionUI.IsConfigured || ballMovement == null || hazardContact == null || !hazardContact.IsConfiguredFor(this, ballMovement) || taskTracker == null || !taskTracker.IsConfiguredFor(this, ballMovement) || gameplayCameraFollow == null)
             {
                 FailSetup("Complete Stage 7C Inspector assignments before playing.");
-                return;
+                return false;
             }
 
             if (trackGenerator.HasFiniteRoute && !PrepareFinishGate())
             {
                 FailSetup("Finite run needs the existing correctly configured finish gate.");
-                return;
+                return false;
             }
 
-            initialRunStarted = true;
             sessionId = Guid.NewGuid().ToString("N");
             activeSeconds = 0d;
             EndInfo = null;
             taskTracker.BeginSession(sessionId);
             sessionUI.BindRun(this, taskTracker);
+            sessionUI.HidePanels();
+            return true;
+        }
+
+        private void HandleRunPrepared()
+        {
+            if (initialRunStarted || !isActiveAndEnabled || State == SessionFlowState.SetupError) return;
+            initialRunStarted = true;
             ballMovement.ResumeMotion(); // Initial setup ONLY, not Pause/Resume.
             ballMovement.DiscardBufferedInput();
             discardInputThroughFrame = Time.frameCount;
@@ -677,6 +794,7 @@ namespace EndlessRollball.Track
                 return;
             subscribedGenerator.RunResetting += HandleRunResetting;
             subscribedGenerator.RunPrepared += HandleRunPrepared;
+            subscribedGenerator.PrepareSessionForReveal += PrepareSessionForReveal;
             subscribedGenerator.RunSetupFailed += FailSetup;
             subscribedGenerator.StreamingHoldChanged += HandleStreamingHold;
         }
@@ -687,6 +805,7 @@ namespace EndlessRollball.Track
             {
                 subscribedGenerator.RunResetting -= HandleRunResetting;
                 subscribedGenerator.RunPrepared -= HandleRunPrepared;
+                subscribedGenerator.PrepareSessionForReveal -= PrepareSessionForReveal;
                 subscribedGenerator.RunSetupFailed -= FailSetup;
                 subscribedGenerator.StreamingHoldChanged -= HandleStreamingHold;
             }
@@ -696,7 +815,9 @@ namespace EndlessRollball.Track
 
         private void OnDisable()
         {
+            pausedCarrierEvent = false;
             burnRecovering=false;
+            physicalSpecialEvent = false;
             if (finishPhase != FinishPhase.None)
                 State = SessionFlowState.SetupError;
             StopFinishPresentation();
@@ -707,7 +828,7 @@ namespace EndlessRollball.Track
             UnsubscribeFromGenerator();
             if (State == SessionFlowState.Running)
                 CaptureActiveInterval();
-            if (State == SessionFlowState.Running || State == SessionFlowState.Paused || State == SessionFlowState.Recovering || State == SessionFlowState.Streaming)
+            if (State == SessionFlowState.Running || State == SessionFlowState.Paused || State == SessionFlowState.Recovering || State == SessionFlowState.Streaming || State == SessionFlowState.SpecialEvent)
                 State = SessionFlowState.SetupError; // Re-enable never revives a run.
             HideFinishGate();
             if (trackGenerator != null)

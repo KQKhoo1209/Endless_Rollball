@@ -46,11 +46,11 @@ namespace EndlessRollball.Track
                 if(!TryPlanBeachBarrier(request.Road,request.Index,request.Difficulty,request.Origin,request.Limit,
                     request.Library,out var accepted,true,family==0?preferred:!preferred)) continue;
                 if(accepted.BeachBarrier.Explosive) explosivePlans++; else woodenPlans++;
-                Debug.Log($"Beach barrier planned: {accepted.BeachBarrier.Family}, segment {request.Index}, zone {request.Zone}, wooden={woodenPlans}, explosive={explosivePlans}.",this);
+                EndlessRollball.Infrastructure.RuntimeLog.Info($"Beach barrier planned: {accepted.BeachBarrier.Family}, segment {request.Index}, zone {request.Zone}, wooden={woodenPlans}, explosive={explosivePlans}.",this);
                 if(request.Index==first.Index) result=accepted; else pendingBeachPlan=accepted;
                 return true;
             }
-            if(missing) Debug.Log($"Beach barrier deferred: zone {first.Zone}, segment {first.Index}; no safe slot in {requests.Count}-segment lookahead (wooden={woodenPlans}, explosive={explosivePlans}).",this);
+            if(missing) EndlessRollball.Infrastructure.RuntimeLog.Info($"Beach barrier deferred: zone {first.Zone}, segment {first.Index}; no safe slot in {requests.Count}-segment lookahead (wooden={woodenPlans}, explosive={explosivePlans}).",this);
             return false;
         }
         private readonly Dictionary<TrackSegment, BeachBarrierEncounter> activeBeachBarriers = new();
@@ -71,7 +71,7 @@ namespace EndlessRollball.Track
             for(int i=0;i<library.BeachBarrierTracks.Length;i++)
             {
                 var source=library.BeachBarrierTracks[(offset+i)%library.BeachBarrierTracks.Length];
-                if(source==null || source.Family==planner.LastFamily || (preferredExplosive.HasValue && source.Explosive!=preferredExplosive.Value)) continue;
+                if(source==null || (sharedCandidate != null && source.gameObject != sharedCandidate) || source.Family==planner.LastFamily || (preferredExplosive.HasValue && source.Explosive!=preferredExplosive.Value)) continue;
                 var track=source.GetComponent<TrackSegment>();
                 if(track==null || !track.IsContractValid(out _) || !track.Supports(difficulty.Mode)) continue;
                 float clearHeight=.6f+.08f;
@@ -79,7 +79,7 @@ namespace EndlessRollball.Track
                     2f*Mathf.Sqrt(jump*jump-2f*gravity*clearHeight)/gravity*minimum*1.25f < .6f+2f*Radius+maximum*1.25f*Time.fixedDeltaTime+.3f)) continue;
                 float approach=source.Explosive ? 10.4f : 2f;
                 float end=origin+Mathf.Max(25f,14f+maximum*2f*jump/gravity+Radius);
-                float playerLocal=ballMovement.transform.position.z-origin;
+                float playerLocal=PlanningPlayerZ-origin;
                 if(source.Explosive && BeachBarrierEncounter.ExplosionTriggerLocalZ(maximum,jump,Radius)-playerLocal < maximum*1.2f) continue;
                 if(end>limit || !planner.CanReach(index,origin+approach,end,0f,difficulty,LateralSpeed,Acceleration)) continue;
                 var window=new TaskWindow { LocalIndex=1, EntryZ=origin-12f, HazardStartZ=origin+(source.Explosive?10.4f:21.7f),
