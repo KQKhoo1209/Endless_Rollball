@@ -7,6 +7,9 @@ namespace EndlessRollball.Track
         public const float ContractLength = 24f;
         [SerializeField] private bool compactJunction;
         public bool IsCompactJunction => compactJunction;
+        internal Transform PresentationTransform =>
+            presentationRoot != null && presentationRoot.transform.IsChildOf(transform)
+                ? presentationRoot.transform : transform;
         public Vector3 EntryLocal => entryAnchor == null ? Vector3.zero : transform.InverseTransformPoint(entryAnchor.position);
         public Vector3 ExitLocal => exitAnchor == null ? Vector3.zero : transform.InverseTransformPoint(exitAnchor.position);
         [SerializeField]

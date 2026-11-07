@@ -6,12 +6,25 @@ namespace EndlessRollball.Track
     {
         [Header("Phoenix lava flight")]
         [SerializeField] private TrackSegment phoenixLavaPrefab;
+        [Tooltip("Lava surface height relative to the Dungeon road floor.")]
+        [SerializeField] private float lavaSurfaceHeight = -.6f;
+        internal float LavaSurfaceHeight => lavaSurfaceHeight;
+
+        private void ConfigureLavaSurface(TrackSegment segment)
+        {
+            Transform visual = segment.transform.Find("RoadVisual/LavaVisual");
+            if (visual == null) return;
+            Vector3 position = visual.localPosition;
+            position.y = lavaSurfaceHeight;
+            visual.localPosition = position;
+        }
         private bool phoenixReserved, phoenixCommitted, phoenixRunning;
         private int phoenixFirstIndex, phoenixExitIndex;
+        private TrackSegment phoenixFallbackRoad;
         internal bool IsCarrierEventRunning => beachSurfRunning || phoenixRunning;
         private bool IsCarrierReserved(int index) => IsBeachSurfReserved(index) ||
             (phoenixReserved && index >= phoenixFirstIndex - 1 && index <= phoenixExitIndex + 1);
-        private bool IsPhoenixLava(int index) => phoenixCommitted &&
+        private bool IsPhoenixLava(int index) => phoenixReserved &&
             index >= phoenixFirstIndex && index < phoenixExitIndex;
         private bool IsCarrierInterior(int index) => IsBeachSurfSea(index) || IsPhoenixLava(index);
 
@@ -33,6 +46,9 @@ namespace EndlessRollball.Track
             for (int i = firstIndex - 1; i <= exitIndex + 1; i++)
                 if (!environmentManager.IsDungeonRoadSegment(i) || environmentManager.RequiresClearTrack(i))
                     return false;
+            if (!environmentManager.TryGetPlayableRoadTrack(firstIndex, out phoenixFallbackRoad))
+                return false;
+
             phoenixFirstIndex = firstIndex;
             phoenixExitIndex = exitIndex;
             phoenixReserved = true;
@@ -46,24 +62,6 @@ namespace EndlessRollball.Track
             if (!phoenixReserved || phoenixCommitted || !IsRunPrepared || phoenixLavaPrefab == null)
                 return false;
             phoenixCommitted = true;
-            // Until boarding succeeds these sections remain supported ordinary roads.
-            // Replace only the active interior, retaining queue order and pool ownership.
-            int count = activeSegments.Count;
-            for (int i = 0; i < count; i++)
-            {
-                ActiveSegment entry = activeSegments.Dequeue();
-                if (!IsPhoenixLava(entry.Index)) { activeSegments.Enqueue(entry); continue; }
-                float rootZ = entry.Instance.transform.position.z;
-                Return(entry);
-                TrackSegment lava = Acquire(phoenixLavaPrefab);
-                lava.transform.SetPositionAndRotation(new Vector3(0f, 0f, rootZ), Quaternion.identity);
-                lava.Activate(difficultyManager.CurrentSnapshot);
-                environmentManager.Attach(lava, entry.Index);
-                taskTracker?.RegisterTrack(lava);
-                activeSegments.Enqueue(new ActiveSegment(phoenixLavaPrefab, lava, entry.EndZ, entry.Index));
-                if (entry.Index < generatedSequence.Count)
-                    generatedSequence[entry.Index] = phoenixLavaPrefab.SegmentId;
-            }
             SetPhoenixRunning(true);
             return true;
         }
@@ -75,8 +73,36 @@ namespace EndlessRollball.Track
 
         internal void CancelPhoenixReservation()
         {
-            if (phoenixCommitted) return;
+            if (!phoenixReserved || phoenixCommitted) return;
+
+            // The lava was streamed in advance. Restore a supported road before
+            // the sphere can reach an entry whose boarding was cancelled.
             phoenixReserved = false;
+            int count = activeSegments.Count;
+            for (int i = 0; i < count; i++)
+            {
+                ActiveSegment entry = activeSegments.Dequeue();
+                if (entry.Index < phoenixFirstIndex || entry.Index >= phoenixExitIndex ||
+                    entry.Prefab != phoenixLavaPrefab)
+                {
+                    activeSegments.Enqueue(entry);
+                    continue;
+                }
+
+                float entryZ = entry.Instance.EntryAnchor.position.z;
+                Return(entry);
+                TrackSegment road = Acquire(phoenixFallbackRoad);
+                float rootZ = entryZ - phoenixFallbackRoad.EntryLocal.z;
+                road.transform.SetPositionAndRotation(new Vector3(0f, 0f, rootZ), Quaternion.identity);
+                road.Activate(difficultyManager.CurrentSnapshot);
+                ConfigureRoadMarkers(road);
+                environmentManager.Attach(road, entry.Index);
+                taskTracker?.RegisterTrack(road);
+                activeSegments.Enqueue(new ActiveSegment(phoenixFallbackRoad, road, entry.EndZ, entry.Index));
+                if (entry.Index < generatedSequence.Count)
+                    generatedSequence[entry.Index] = phoenixFallbackRoad.SegmentId;
+            }
+            phoenixFallbackRoad = null;
         }
 
         internal bool TryGetPhoenixExitFloor(out float height)
@@ -100,6 +126,7 @@ namespace EndlessRollball.Track
             SetPhoenixRunning(false);
             phoenixReserved = phoenixCommitted = false;
             phoenixFirstIndex = phoenixExitIndex = -1;
+            phoenixFallbackRoad = null;
         }
     }
 }

@@ -53,6 +53,7 @@ namespace EndlessRollball.Track
         private bool sessionActive, scoringSuspended;
         private readonly HashSet<int> eventNavigation = new HashSet<int>();
         internal void BeginEventNavigation() => eventNavigation.Clear();
+        internal void ExcludeEventNavigation(int identity) => eventNavigation.Add(identity);
         internal void RecordEventNavigation(int identity, bool succeeded)
         {
             if (!sessionActive || runController == null || runController.State != SessionFlowState.SpecialEvent || !eventNavigation.Add(identity)) return;

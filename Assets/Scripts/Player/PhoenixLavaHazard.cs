@@ -7,52 +7,47 @@ namespace EndlessRollball
         public enum HazardKind { Pillar, Eruption, BouncingBall }
         [SerializeField] private HazardKind kind;
         [SerializeField] private Transform hazardVisual;
-        [SerializeField] private Renderer warningVisual;
+        // Retained so older prefab instances also have their warning disabled.
+        [SerializeField, HideInInspector] private Renderer warningVisual;
         [SerializeField] private Collider hitCollider;
         [SerializeField] private Material sparkMaterial;
+        [SerializeField, Min(0f)] private float bubbleLeadSeconds = 2f;
+        private LavaSurfaceEffect surfaceEffect;
+        private bool preparationStarted;
         private Rigidbody body;
         private ParticleSystem sparks;
-        private MaterialPropertyBlock warningProperties;
+        private ParticleSystem trail;
+        private ParticleSystem splash;
         private float encounter, height, surfaceY, centreX, direction;
         private Vector3 start;
         private bool prepared;
         private bool eruptionPlaying;
-        private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
+        private bool ballActive;
 
         public void Prepare()
         {
             if (prepared) return;
             body = GetComponent<Rigidbody>();
-            warningProperties = new MaterialPropertyBlock();
-            if (kind == HazardKind.Eruption)
+            if (kind != HazardKind.Pillar)
+                surfaceEffect = LavaSurfaceEffect.Create(transform);
+            if (warningVisual != null)
+                warningVisual.gameObject.SetActive(false);
+            sparks = FindParticles("Eruption Particles");
+            trail = FindParticles("Ember Trail");
+            splash = FindParticles("Lava Splash");
+            if (sparks != null && sparkMaterial != null)
             {
-                // Created once per pooled encounter; no runtime particle/component churn.
-                GameObject plume = new GameObject("Decorative Lava Sparks");
-                plume.transform.SetParent(transform, false);
-                sparks = plume.AddComponent<ParticleSystem>();
-                sparks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-                var main = sparks.main;
-                main.playOnAwake = false;
-                main.loop = true;
-                main.duration = 1.25f;
-                main.startLifetime = .8f;
-                main.startSpeed = 5f;
-                main.startSize = .22f;
-                main.startColor = new Color(1f, .32f, .015f, 1f);
-                main.gravityModifier = .7f;
-                main.maxParticles = 48;
-                var emission = sparks.emission;
-                emission.rateOverTime = 36f;
-                var shape = sparks.shape;
-                shape.shapeType = ParticleSystemShapeType.Cone;
-                shape.angle = 15f;
-                shape.radius = .7f;
-                plume.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
-                var collision = sparks.collision;
-                collision.enabled = false;
-                sparks.GetComponent<ParticleSystemRenderer>().sharedMaterial = sparkMaterial;
+                var renderer = sparks.GetComponent<ParticleSystemRenderer>();
+                if (renderer.sharedMaterial == null)
+                    renderer.sharedMaterial = sparkMaterial;
             }
             prepared = true;
+        }
+
+        private ParticleSystem FindParticles(string name)
+        {
+            Transform child = transform.Find(name);
+            return child != null ? child.GetComponent<ParticleSystem>() : null;
         }
 
         public void ResetEncounter(Vector3 worldStart, float encounterTime, float flightHeight,
@@ -62,85 +57,134 @@ namespace EndlessRollball
             start = worldStart;
             encounter = encounterTime;
             height = flightHeight;
-            surfaceY = 0f;
+            surfaceY = worldStart.y;
             centreX = channelCentre;
             direction = crossingDirection;
             transform.position = start;
             if (body != null) body.position = start;
-            eruptionPlaying = false;
-            if (sparks != null) sparks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            eruptionPlaying = ballActive = false;
+            preparationStarted = false;
+            Vector3 surfacePosition = start;
+            surfacePosition.y = surfaceY + .08f;
+            surfaceEffect?.Reset(transform.parent, surfacePosition);
+            StopParticles(sparks);
+            StopParticles(trail);
+            StopParticles(splash);
+            if (splash != null)
+                splash.transform.SetParent(transform.parent, true);
             hitCollider.enabled = false;
-            warningVisual.gameObject.SetActive(false);
-            hazardVisual.gameObject.SetActive(kind == HazardKind.Pillar);
-            if (kind == HazardKind.Pillar)
-            {
-                float pillarHeight = height + 3f;
-                hazardVisual.localPosition = Vector3.up * (pillarHeight * .5f);
-                hazardVisual.localScale = new Vector3(2.2f, pillarHeight, 2.2f);
-                BoxCollider box = (BoxCollider)hitCollider;
-                box.size = new Vector3(2.2f, pillarHeight, 2.2f);
-                box.center = Vector3.up * (pillarHeight * .5f);
-            }
-            if (kind == HazardKind.BouncingBall)
-            {
-                // The warning belongs to the fixed course, not the airborne body.
-                warningVisual.transform.SetParent(transform.parent, true);
-                warningVisual.transform.position = new Vector3(centreX, .04f, start.z);
-            }
+            hazardVisual.localRotation = Quaternion.identity;
+            hazardVisual.gameObject.SetActive(false);
         }
 
         public void Tick(float time)
         {
             if (kind == HazardKind.Pillar)
             {
-                hitCollider.enabled = true;
+                hitCollider.enabled = false;
                 return;
             }
-            bool warning = time >= encounter - (kind == HazardKind.Eruption ? 2.4f : 3.6f) && time <= encounter + 1.6f;
-            warningVisual.gameObject.SetActive(warning);
-            if (warning)
+            float launchTime = encounter - (kind == HazardKind.Eruption ? .35f : 1.6f);
+            if (!preparationStarted && time >= launchTime - bubbleLeadSeconds && time < launchTime)
             {
-                float pulse = .65f + .35f * Mathf.Sin(time * 12f);
-                warningProperties.SetColor(BaseColor, new Color(1f, .75f, .06f, 1f) * pulse);
-                warningVisual.SetPropertyBlock(warningProperties);
+                Vector3 emergence = kind == HazardKind.Eruption ? start :
+                    new Vector3(centreX - direction * 4.5f, surfaceY, start.z);
+                emergence.y = surfaceY + .08f;
+                surfaceEffect?.BeginPrepare(emergence);
+                preparationStarted = true;
             }
             if (kind == HazardKind.Eruption)
             {
-                float columnHeight = PhoenixLavaMath.EruptionHeight(time, encounter, height + 3f);
-                bool active = columnHeight > .15f;
-                hazardVisual.gameObject.SetActive(active);
-                hitCollider.enabled = active;
-                if (active)
-                {
-                    hazardVisual.localPosition = Vector3.up * (columnHeight * .5f);
-                    hazardVisual.localScale = new Vector3(2.2f, columnHeight * .5f, 2.2f);
-                    CapsuleCollider capsule = (CapsuleCollider)hitCollider;
-                    capsule.radius = Mathf.Min(1f, columnHeight * .5f);
-                    capsule.height = columnHeight;
-                    capsule.center = Vector3.up * (columnHeight * .5f);
-                }
-                if (active && !eruptionPlaying) sparks.Play();
-                if (!active && eruptionPlaying) sparks.Stop(true, ParticleSystemStopBehavior.StopEmitting);
-                eruptionPlaying = active;
+                TickEruption(time);
+                return;
             }
-            else
+
+            float u = Mathf.Clamp01((time - (encounter - 1.6f)) / 3.2f);
+            bool active = time >= encounter - 1.6f && time <= encounter + 1.6f;
+            hazardVisual.gameObject.SetActive(active);
+            hitCollider.enabled = active;
+            Vector3 position = new Vector3(
+                centreX + direction * Mathf.Lerp(-4.5f, 4.5f, u),
+                surfaceY + .65f + PhoenixLavaMath.JumpLift(u, height + 1.8f), start.z);
+            body.MovePosition(position);
+            if (active && !ballActive)
             {
-                float u = Mathf.Clamp01((time - (encounter - 1.6f)) / 3.2f);
-                bool active = time >= encounter - 1.6f && time <= encounter + 1.6f;
-                hazardVisual.gameObject.SetActive(active);
-                hitCollider.enabled = active;
-                Vector3 position = new Vector3(centreX + direction * Mathf.Lerp(-4.5f, 4.5f, u),
-                    surfaceY + .65f + PhoenixLavaMath.JumpLift(u, height + 1.8f), start.z);
-                body.MovePosition(position);
+                surfaceEffect?.EndPrepare();
+                if (trail != null) trail.Play();
             }
+            else if (!active && ballActive)
+            {
+                if (trail != null) trail.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                PlaySplash(position);
+            }
+            ballActive = active;
         }
+
+        private void TickEruption(float time)
+        {
+            // Molten mass and droplets rise vertically, then return under gravity.
+            float gravity = Mathf.Max(.1f, -Physics.gravity.y);
+            float riseHeight = Mathf.Max(2f, height + 3f - surfaceY);
+            float launchSpeed = Mathf.Sqrt(2f * gravity * riseHeight);
+            float flightSeconds = 2f * launchSpeed / gravity;
+            float age = time - (encounter - .35f);
+            bool active = age >= 0f && age <= flightSeconds;
+            hazardVisual.gameObject.SetActive(active);
+            hitCollider.enabled = active;
+            if (active)
+            {
+                float rise = Mathf.Max(0f, launchSpeed * age - .5f * gravity * age * age);
+                float stretch = Mathf.Abs(launchSpeed - gravity * age) / launchSpeed;
+                float massHeight = 1.8f + .5f * stretch;
+                float centreY = .9f + rise;
+                hazardVisual.localPosition = Vector3.up * centreY;
+                hazardVisual.localScale = new Vector3(1.8f, massHeight, 1.8f);
+                var capsule = (CapsuleCollider)hitCollider;
+                capsule.radius = .9f;
+                capsule.height = massHeight;
+                capsule.center = Vector3.up * centreY;
+            }
+            if (active && !eruptionPlaying)
+            {
+                surfaceEffect?.EndPrepare();
+                if (sparks != null) sparks.Play();
+            }
+            if (!active && eruptionPlaying)
+            {
+                if (sparks != null)
+                    sparks.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                PlaySplash(start);
+            }
+            eruptionPlaying = active;
+        }
+
+        private void PlaySplash(Vector3 position)
+        {
+            position.y = surfaceY + .08f;
+            surfaceEffect?.Impact(position);
+            if (splash == null) return;
+            splash.transform.position = position;
+            splash.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            splash.Play();
+        }
+
+        private static void StopParticles(ParticleSystem particles)
+        {
+            if (particles != null)
+                particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        private void OnDestroy() => surfaceEffect?.Dispose();
 
         private void OnDisable()
         {
+            surfaceEffect?.Clear();
             if (hitCollider != null) hitCollider.enabled = false;
             if (warningVisual != null) warningVisual.gameObject.SetActive(false);
-            if (sparks != null) sparks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            eruptionPlaying = false;
+            StopParticles(sparks);
+            StopParticles(trail);
+            StopParticles(splash);
+            eruptionPlaying = ballActive = false;
         }
     }
 }

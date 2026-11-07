@@ -81,20 +81,32 @@ namespace EndlessRollball.Track
             return false;
         }
 
+        private StreetBouncePadSpawner streetPadSpawner;
+
         private bool IsCloudEntryBuffer(int index)
         {
-            if (environmentManager == null || index < 0)
+            if (streetPadSpawner == null || environmentManager == null ||
+                !environmentManager.IsStreetRoadSegment(index))
                 return false;
 
-            var sequence=FindFirstObjectByType<GameSequenceCoordinator>();
-            if(sequence!=null && sequence.Eligible && player!=null) {
-                if(!sequence.Available)return false;
-                sequence.Window(out _,out float target,out _);
-                float desired=player.position.z+Mathf.Max(.1f,difficultyManager.CurrentSnapshot.ForwardSpeed)*(target-sequence.Elapsed);
-                float segmentZ=startZ+index*TrackSegment.ContractLength;
-                return environmentManager.IsStreetRoadSegment(index) && Mathf.Abs(segmentZ-desired)<48f;
+            // Upcoming segments are measured from the actual generation frontier,
+            // including any distance changes from earlier compact junctions.
+            float centreZ = nextSpawnZ + (index - spawnedCount + .5f) * TrackSegment.ContractLength;
+            return streetPadSpawner.ReservesRoad(centreZ);
+        }
+
+        private bool CanPlaceCloudPad(int index)
+        {
+            if (!IsCloudEntryBuffer(index) || (hasFiniteRoute && index + 2 >= finishSegmentIndex))
+                return false;
+
+            for (int nearby = index - 1; nearby <= index + 1; nearby++)
+            {
+                if (!environmentManager.IsStreetRoadSegment(nearby) ||
+                    environmentManager.RequiresClearTrack(nearby))
+                    return false;
             }
-            return false;
+            return true;
         }
 
         private readonly RaycastHit[] cloudDropHits = new RaycastHit[24];

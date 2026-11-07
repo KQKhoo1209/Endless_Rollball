@@ -13,10 +13,17 @@ namespace EndlessRollball
         [SerializeField, Min(.1f)] private float wingspan = 1.4f;
         [SerializeField] private float flapDegrees = 22f;
         [SerializeField] private float flapSeconds = .75f;
+        [SerializeField, Min(0f)] private float bodyBob = .1f;
+        [SerializeField, Range(0f, 30f)] private float maximumYaw = 18f;
+        [SerializeField, Range(0f, 15f)] private float maximumBank = 6f;
+        [SerializeField, Min(.1f)] private float turnResponse = 6f;
         private bool prepared;
-        private Quaternion leftRest, rightRest;
+        private Quaternion leftRest, rightRest, restRotation;
         private Vector3 restPosition;
         private float reactionUntil;
+        private float animationTime;
+        private float targetSteering, visualSteering;
+        private float leftSide, rightSide;
 
         public void PrepareModel()
         {
@@ -35,26 +42,23 @@ namespace EndlessRollball
             foreach (Renderer renderer in renderers) bounds.Encapsulate(renderer.bounds);
             Vector3 desired = transform.TransformPoint(new Vector3(0f, .8f, 0f));
             model.position += desired - new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
-            FitShoulder(leftWing, leftShoulder);
-            FitShoulder(rightWing, rightShoulder);
+            // Shoulder joints are authored at the mesh roots. Do not refit them
+            // from renderer bounds, which would move the hinge away from the body.
             leftRest = leftShoulder.localRotation;
             rightRest = rightShoulder.localRotation;
+            leftSide = ShoulderSide(leftShoulder);
+            rightSide = ShoulderSide(rightShoulder);
             restPosition = transform.localPosition;
+            restRotation = transform.localRotation;
             prepared = true;
         }
 
-        private void FitShoulder(Transform wing, Transform pivot)
+        private float ShoulderSide(Transform shoulder)
         {
-            Renderer renderer = wing.GetComponent<Renderer>();
-            if (renderer == null) return;
-            Vector3 wingPosition = wing.position;
-            Quaternion rotation = wing.rotation;
-            Bounds b = renderer.bounds;
-            float x = Mathf.Abs(b.min.x - body.bounds.center.x) < Mathf.Abs(b.max.x - body.bounds.center.x)
-                ? b.min.x : b.max.x;
-            pivot.position = new Vector3(x, b.center.y, b.center.z);
-            wing.SetPositionAndRotation(wingPosition, rotation);
+            return Mathf.Sign(Vector3.Dot(shoulder.position - body.bounds.center, shoulder.right));
         }
+
+        public void SetSteering(float steering) => targetSteering = Mathf.Clamp(steering, -1f, 1f);
 
         public void React() => reactionUntil = Time.time + .6f;
 
@@ -62,20 +66,30 @@ namespace EndlessRollball
         {
             if (!prepared) PrepareModel();
             if (!prepared) return;
-            float wave = Mathf.Sin(Time.time * (Mathf.PI * 2f / Mathf.Max(.1f, flapSeconds)));
-            leftShoulder.localRotation = leftRest * Quaternion.AngleAxis(wave * flapDegrees, Vector3.forward);
-            rightShoulder.localRotation = rightRest * Quaternion.AngleAxis(-wave * flapDegrees, Vector3.forward);
+            animationTime += Time.deltaTime;
+            float phase = animationTime * (Mathf.PI * 2f / Mathf.Max(.1f, flapSeconds));
+            float wave = Mathf.Sin(phase);
+            leftShoulder.localRotation = leftRest * Quaternion.AngleAxis(-leftSide * wave * flapDegrees, Vector3.forward);
+            rightShoulder.localRotation = rightRest * Quaternion.AngleAxis(-rightSide * wave * flapDegrees, Vector3.forward);
+            visualSteering = Mathf.Lerp(visualSteering, targetSteering,
+                1f - Mathf.Exp(-turnResponse * Time.deltaTime));
             bool hit = Time.time < reactionUntil;
-            transform.localPosition = restPosition + Vector3.up * (wave * .06f);
-            transform.localRotation = Quaternion.Euler(0f, 0f, hit ? Mathf.Sin(Time.time * 28f) * 9f : 0f);
+            // Lift follows the downstroke. The controller follows the animated
+            // leg anchor afterward; the phoenix collision body stays level.
+            transform.localPosition = restPosition + Vector3.up * (Mathf.Sin(phase - .5f) * bodyBob);
+            float reactionRoll = hit ? Mathf.Sin(Time.time * 28f) * 9f : 0f;
+            transform.localRotation = restRotation * Quaternion.Euler(0f,
+                visualSteering * maximumYaw, -visualSteering * maximumBank + reactionRoll);
         }
 
         private void OnDisable()
         {
             reactionUntil = 0f;
+            animationTime = 0f;
+            targetSteering = visualSteering = 0f;
             if (!prepared) return;
             transform.localPosition = restPosition;
-            transform.localRotation = Quaternion.identity;
+            transform.localRotation = restRotation;
             leftShoulder.localRotation = leftRest;
             rightShoulder.localRotation = rightRest;
         }

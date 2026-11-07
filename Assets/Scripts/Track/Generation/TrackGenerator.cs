@@ -162,6 +162,8 @@ namespace EndlessRollball.Track
             double startedAt = Time.realtimeSinceStartupAsDouble;
             generationPaused = true;
             ReturnAllSegments();
+            streetPadSpawner = GetComponent<StreetBouncePadSpawner>();
+            streetPadSpawner?.ResetPlacement();
             if (obstacleManager != null)
                 obstacleManager.EndRun();
             taskTracker?.ResetRoute();
@@ -392,6 +394,10 @@ namespace EndlessRollball.Track
                 finishSegmentIndex++;
                 finiteSegmentLimit++;
             }
+            if (streetPadSpawner != null && environmentManager != null &&
+                environmentManager.IsStreetRoadSegment(spawnedCount))
+                streetPadSpawner.PlanPlacement(nextSpawnZ, snapshot.ForwardSpeed);
+
             bool requiresClearTrack = IsCarrierReserved(spawnedCount) || cloudRoadContinuation || IsCloudEntryBuffer(spawnedCount) || (environmentManager != null && environmentManager.RequiresClearTrack(spawnedCount)) ||
                 IsFinishCorridor(spawnedCount) || (hasFiniteRoute && spawnedCount >= finishSegmentIndex - 1);
             TrackSegment prefab;
@@ -525,23 +531,13 @@ namespace EndlessRollball.Track
             environmentManager?.RecordRouteEntry(spawnedCount, nextSpawnZ, physicalExitZ);
             instance.transform.SetPositionAndRotation(new Vector3(0f, 0f, rootZ), Quaternion.identity);
             instance.Activate(snapshot);
+            if (IsPhoenixLava(spawnedCount))
+                ConfigureLavaSurface(instance);
+            if (IsBeachSurfSea(spawnedCount))
+                ConfigureSeaSurface(instance);
 
             if (!IsCarrierInterior(spawnedCount))
-            {
-                RoadCorridorMarkers markers =
-                    instance.GetComponent<RoadCorridorMarkers>();
-
-                if (markers == null)
-                {
-                    markers =
-                        instance.gameObject.AddComponent<RoadCorridorMarkers>();
-                }
-
-                markers.Configure(
-                    instance,
-                    difficultyManager,
-                    corridorMarkerMaterial);
-            }
+                ConfigureRoadMarkers(instance);
 
             // Dungeon lava retains normal scenery; Beach sea omits resort scenery.
             if (!IsBeachSurfSea(spawnedCount))
@@ -554,11 +550,22 @@ namespace EndlessRollball.Track
             }
 
             float endZ = physicalExitZ;
+            if (CanPlaceCloudPad(spawnedCount) && !instance.RequiredJump &&
+                instance.Kind == TrackSegmentKind.Empty)
+                streetPadSpawner.PlaceOnRoad(instance);
+
             activeSegments.Enqueue(new ActiveSegment(prefab, instance, Mathf.Max(endZ, encounter.EndZ + 1f), spawnedCount));
             generatedSequence.Add(prefab.SegmentId);
             nextSpawnZ = endZ;
             spawnedCount++;
             return true;
+        }
+
+        private void ConfigureRoadMarkers(TrackSegment instance)
+        {
+            if (!instance.TryGetComponent(out RoadCorridorMarkers markers))
+                markers = instance.gameObject.AddComponent<RoadCorridorMarkers>();
+            markers.Configure(instance, difficultyManager, corridorMarkerMaterial);
         }
 
         private void UpdateSelectionStateForForcedSegment(TrackSegment prefab)
@@ -652,6 +659,7 @@ namespace EndlessRollball.Track
 
         private void Return(ActiveSegment active)
         {
+            streetPadSpawner?.ReleaseRoad(active.Instance);
             taskTracker?.ReleaseTrack(active.Instance);
             if (obstacleManager != null)
                 obstacleManager.Release(active.Instance);

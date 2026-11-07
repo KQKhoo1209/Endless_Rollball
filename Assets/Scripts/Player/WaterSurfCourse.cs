@@ -4,6 +4,8 @@ namespace EndlessRollball
 {
     public sealed class WaterSurfCourse : MonoBehaviour
     {
+        internal const float SeaSurfaceOffset = -.25f;
+        internal float SurfaceHeight { get; private set; } = SeaSurfaceOffset;
         [Header("References")]
         [SerializeField] private Transform waterSurface;
         [SerializeField] private WhaleSurfObstacle rockPrefab;
@@ -33,13 +35,68 @@ namespace EndlessRollball
 
         private WhaleSurfObstacle[] obstacles;
 
-        internal void ScorePassed(EndlessRollball.Track.SessionTaskTracker tracker,float elapsed)
+        internal void ScorePassed(EndlessRollball.Track.SessionTaskTracker tracker, float rearZ)
         {
-            if(obstacles==null)return;
-            for(int i=0;i<obstacles.Length;i++)
-                if(obstacles[i].gameObject.activeSelf && elapsed>EncounterTimes[i]+3f)
-                    tracker.RecordEventNavigation(obstacles[i].GetInstanceID(),true);
+            if (obstacles == null) return;
+            foreach (WhaleSurfObstacle obstacle in obstacles)
+                if (obstacle.TryGetContactBounds(out Bounds bounds) && bounds.max.z < rearZ)
+                    tracker.RecordEventNavigation(obstacle.GetInstanceID(), true);
         }
+
+        internal bool TryFindRecovery(WhaleSurfObstacle failed, Bounds whale, float centreX,
+            float width, float limitZ, float clearance, out Vector3 destination)
+        {
+            destination = whale.center;
+            float startZ = whale.center.z + clearance;
+            if (failed.TryGetContactBounds(out Bounds hit))
+                startZ = Mathf.Max(startZ, hit.max.z + whale.extents.z + clearance);
+            float bestZ = float.PositiveInfinity;
+            float halfWidth = Mathf.Max(0, width * .5f - whale.extents.x - clearance);
+            for (int lane = 0; lane < 4; lane++)
+            {
+                float x = lane == 0 ? whale.center.x : lane == 1 ? centreX :
+                    centreX + (lane == 2 ? -halfWidth : halfWidth);
+                x = Mathf.Clamp(x, centreX - halfWidth, centreX + halfWidth);
+                float z = startZ;
+                // Every blocking encounter advances Z, so this search is bounded.
+                for (int pass = 0; pass <= obstacles.Length && z <= limitZ; pass++)
+                {
+                    float nextZ = z;
+                    foreach (WhaleSurfObstacle obstacle in obstacles)
+                    {
+                        if (!obstacle.TryGetContactBounds(out Bounds bounds)) continue;
+                        if (x + whale.extents.x + clearance > bounds.min.x &&
+                            x - whale.extents.x - clearance < bounds.max.x &&
+                            z + whale.extents.z + clearance > bounds.min.z &&
+                            z - whale.extents.z - clearance < bounds.max.z)
+                            nextZ = Mathf.Max(nextZ, bounds.max.z + whale.extents.z + clearance);
+                    }
+                    if (Mathf.Approximately(nextZ, z))
+                    {
+                        if (z < bestZ)
+                        {
+                            bestZ = z;
+                            destination = new Vector3(x, whale.center.y, z);
+                        }
+                        break;
+                    }
+                    z = nextZ;
+                }
+            }
+            return !float.IsPositiveInfinity(bestZ);
+        }
+
+        internal void ExcludeRecoverySkips(EndlessRollball.Track.SessionTaskTracker tracker,
+            float oldZ, float newRearZ)
+        {
+            foreach (WhaleSurfObstacle obstacle in obstacles)
+                if (obstacle.TryGetContactBounds(out Bounds bounds) &&
+                    bounds.max.z > oldZ && bounds.max.z < newRearZ)
+                    tracker.ExcludeEventNavigation(obstacle.GetInstanceID());
+        }
+
+        internal Material SurfaceMaterial => waterSurface != null &&
+            waterSurface.TryGetComponent(out Renderer renderer) ? renderer.sharedMaterial : null;
 
         public bool Prepare()
         {
@@ -89,6 +146,7 @@ namespace EndlessRollball
                     prefab = boatPrefabs[selection];
 
                 obstacles[i] = Instantiate(prefab, transform);
+                obstacles[i].PrepareWake();
                 obstacles[i].name =
                     $"{prefab.name} - Encounter {i + 1}";
 
@@ -110,10 +168,11 @@ namespace EndlessRollball
                 new Vector3(centreX, waterHeight, start.z),
                 Quaternion.identity);
 
+            SurfaceHeight = waterHeight + SeaSurfaceOffset;
             float travelLength = speed * duration;
 
             waterSurface.localPosition =
-                new Vector3(0f, .05f, travelLength * .5f);
+                new Vector3(0f, SeaSurfaceOffset, travelLength * .5f);
 
             // Unity's default Plane is 10 × 10 metres.
             waterSurface.localScale = new Vector3(
@@ -136,7 +195,7 @@ namespace EndlessRollball
                     encounterTime < duration - 4f);
 
                 obstacles[i].ConfigureMovement(
-                    surfer, speed, centreX);
+                    surfer, speed, centreX, SurfaceMaterial, SurfaceHeight);
             }
 
             gameObject.SetActive(true);

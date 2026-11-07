@@ -19,23 +19,40 @@ namespace EndlessRollball
                  "would reach the boat's starting position.")]
         [SerializeField, Min(.1f)] private float approachLeadSeconds = 4f;
 
+        [Header("Moving water effects")]
+        [SerializeField] private bool movingWaterEffects = true;
+        private WaterMovementWake wake;
+        private SurfaceContactRipples contactRipples;
+        private Collider[] contactColliders;
+        private WhaleSurfController surfController;
         private Rigidbody body;
         private Transform surfer;
         private Vector3 startPosition;
+        private float waterSurfaceY;
         private Vector3 crossingTarget;
         private float activationDistance;
         private bool prepared;
         private bool moving;
 
+        internal void PrepareWake()
+        {
+            if (movingWaterEffects && movement != MovementType.Stationary && wake == null)
+                wake = WaterMovementWake.Create(transform, transform.Find("Visual") ?? transform);
+        }
+
         public void ConfigureMovement(
             Transform surferTransform,
             float surferSpeed,
-            float channelCentreX)
+            float channelCentreX,
+            Material surfaceMaterial = null,
+            float surfaceY = float.NaN)
         {
             body = GetComponent<Rigidbody>();
             surfer = surferTransform;
+            surfController = surfer != null ? surfer.GetComponent<WhaleSurfController>() : null;
 
             startPosition = transform.position;
+            waterSurfaceY = float.IsNaN(surfaceY) ? startPosition.y : surfaceY;
             crossingTarget = startPosition;
             crossingTarget.x =
                 channelCentreX * 2f - startPosition.x;
@@ -45,6 +62,11 @@ namespace EndlessRollball
 
             moving = false;
             prepared = false;
+            PrepareWake();
+            wake?.ResetAt(startPosition, waterSurfaceY, surfaceMaterial);
+            if (contactRipples == null)
+                contactRipples = GetComponent<SurfaceContactRipples>();
+            contactRipples?.RestartAtWaterline(surfaceMaterial, waterSurfaceY);
 
             if (movement == MovementType.Stationary)
                 return;
@@ -70,8 +92,11 @@ namespace EndlessRollball
 
         private void FixedUpdate()
         {
-            if (!prepared || surfer == null)
+            if (!prepared || surfer == null || (surfController != null && surfController.IsRecovering))
+            {
+                wake?.Stop();
                 return;
+            }
 
             if (!moving)
             {
@@ -112,11 +137,29 @@ namespace EndlessRollball
                     prepared = false;
             }
 
+            wake?.Move(next, (next - body.position) / Time.fixedDeltaTime, waterSurfaceY);
             body.MovePosition(next);
+        }
+
+        internal bool TryGetContactBounds(out Bounds bounds)
+        {
+            if (contactColliders == null)
+                contactColliders = GetComponentsInChildren<Collider>(true);
+            bounds = default;
+            bool found = false;
+            foreach (Collider contact in contactColliders)
+            {
+                if (!contact.enabled || !contact.gameObject.activeInHierarchy) continue;
+                if (found) bounds.Encapsulate(contact.bounds);
+                else bounds = contact.bounds;
+                found = true;
+            }
+            return found;
         }
 
         private void OnDisable()
         {
+            wake?.Clear();
             prepared = false;
             moving = false;
         }

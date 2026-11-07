@@ -13,6 +13,33 @@ namespace EndlessRollball
         [SerializeField] private GameObject visual;
         [SerializeField] private WaterSurfCourse course;
 
+        [Header("Swimming animation")]
+        [SerializeField, Min(0f)] private float waitingSwimSpeed = .5f;
+        [SerializeField, Min(0f)] private float travellingSwimSpeed = 1f;
+        [SerializeField, Min(0f)] private float recoveringSwimSpeed = .25f;
+        private Animator swimAnimator;
+        private static readonly int SwimSpeed = Animator.StringToHash("SwimSpeed");
+
+        [Header("Moving water effects")]
+        [SerializeField] private bool movingWaterEffects = true;
+        private WaterMovementWake wake;
+
+        [Header("Obstacle hit feedback")]
+        [SerializeField, Range(0f, 1f)] private float hitSoundVolume = .55f;
+        [SerializeField, Min(.1f)] private float hitFlinchDuration = .35f;
+        [SerializeField, Min(0f)] private float hitFlinchDepth = .1f;
+        private WhaleHitFeedback hitFeedback;
+
+        [Header("Obstacle recovery")]
+        [SerializeField, Min(.2f)] private float sinkSeconds = .7f;
+        [SerializeField, Min(1f)] private float sinkDepth = 3f;
+        [SerializeField, Min(.5f)] private float recoveryClearance = 1.5f;
+        [SerializeField, Min(.1f)] private float recoveryProtectionSeconds = 1.5f;
+        private float recoveryElapsed;
+        private Vector3 recoveryStart;
+        private Vector3 recoveryDestination;
+        private bool recoverToExit;
+
         [Header("Movement")]
         [SerializeField, Min(.1f)] private float forwardSpeed = 6f;
         [SerializeField, Min(.1f)] private float steeringSpeed = 5f;
@@ -32,7 +59,7 @@ namespace EndlessRollball
         [SerializeField] private Vector3 cameraExtraOffset = new Vector3(0f, 1.5f, -6f);
         [SerializeField] private float cameraLookAhead = 0f;
 
-        private enum RoutePhase { None, Boarding, Surfing, WaitingForExit, ExitJump }
+        private enum RoutePhase { None, Boarding, Surfing, Recovering, WaitingForExit, ExitJump }
         private RoutePhase phase;
         private Rigidbody whaleBody;
         private CapsuleCollider hull;
@@ -65,11 +92,14 @@ namespace EndlessRollball
 
         public int SurfHits => surfHits;
         public bool IsSurfing => surfing;
+        public bool IsRecovering => surfing && phase == RoutePhase.Recovering;
         public float BoardingTakeoffDistance => boardingTakeoffDistance;
         public float BoardingSeconds => handoffJumpSeconds;
 
         private void Awake()
         {
+            if (visual != null)
+                swimAnimator = visual.GetComponentInChildren<Animator>(true);
             whaleBody = GetComponent<Rigidbody>();
             hull = GetComponent<CapsuleCollider>();
             whaleBody.isKinematic = true;
@@ -83,6 +113,9 @@ namespace EndlessRollball
 
         private void Update()
         {
+            UpdateSwimmingAnimation();
+            hitFeedback?.Tick(Time.timeScale <= 0f || (runController != null &&
+                runController.State == SessionFlowState.Paused));
             if (!surfing && !waitingAtEntry && visual != null && player != null &&
                 player.transform.position.z > retireWhaleAtZ)
             {
@@ -91,11 +124,27 @@ namespace EndlessRollball
             }
         }
 
+        private void UpdateSwimmingAnimation()
+        {
+            if (swimAnimator == null || !swimAnimator.isActiveAndEnabled)
+                return;
+
+            float speed = waitingSwimSpeed;
+            if (phase == RoutePhase.Surfing)
+                speed = travellingSwimSpeed;
+            else if (phase == RoutePhase.Recovering)
+                speed = recoveringSwimSpeed;
+            swimAnimator.SetFloat(SwimSpeed, speed, .2f, Time.deltaTime);
+        }
+
         public bool PrepareBeachRoute(float duration)
         {
+            if (movingWaterEffects && wake == null && visual != null)
+                wake = WaterMovementWake.Create(transform, visual.transform);
             if (player == null || runController == null || ballAnchor == null ||
                 visual == null || course == null ||
                 !player.TryGetComponent(out Rigidbody _)) return false;
+            PrepareHitFeedback();
             course.SetDuration(duration);
             return course.Prepare();
         }
@@ -205,17 +254,33 @@ namespace EndlessRollball
             return true;
         }
 
+        private void PrepareHitFeedback()
+        {
+            if (hitFeedback == null && visual != null)
+                hitFeedback = WhaleHitFeedback.Create(transform, visual.transform);
+        }
+
         private void StartCourse(bool showWater)
         {
+            PrepareHitFeedback();
+            hitFeedback?.Clear();
+            if (movingWaterEffects && wake == null && visual != null)
+                wake = WaterMovementWake.Create(transform, visual.transform);
             hull.enabled = true;
             course.Show(whaleBody.position, channelCentreX, forwardSpeed,
                 channelWidth, waterHeight, transform);
+            wake?.ResetAt(whaleBody.position, course.SurfaceHeight, course.SurfaceMaterial);
             course.SetWaterSurfaceVisible(showWater);
         }
 
         private void FixedUpdate()
         {
-            if (!surfing) return;
+            if (!surfing || runController.State != SessionFlowState.SpecialEvent) return;
+            if (phase == RoutePhase.Recovering)
+            {
+                TickRecovery();
+                return;
+            }
             if (phase == RoutePhase.Boarding || phase == RoutePhase.ExitJump)
             {
                 player.DiscardBufferedInput();
@@ -253,7 +318,7 @@ namespace EndlessRollball
                 ? Mathf.Min(Time.fixedDeltaTime, Mathf.Max(0f, routeDuration - routeElapsed))
                 : Time.fixedDeltaTime;
             if (integratedRoute) routeElapsed += step;
-            course.ScorePassed(runController.Tasks,routeElapsed);
+            course.ScorePassed(runController.Tasks, hull.bounds.min.z);
             GameplayCommand command = player.ReadEventCommand();
             lateralVelocity = Mathf.MoveTowards(lateralVelocity,
                 command.Steering * steeringSpeed, steeringAcceleration * step);
@@ -276,18 +341,90 @@ namespace EndlessRollball
             float hullOffsetX = transform.TransformVector(hull.center).x;
             next.x = Mathf.Clamp(next.x, channelCentreX - halfWidth - hullOffsetX,
                 channelCentreX + halfWidth - hullOffsetX);
+            Vector3 velocity = (next - whaleBody.position) / Time.fixedDeltaTime;
+            // The imported whale rig has a 90-degree root rotation.
+            // Its visible head faces along the course's world +Z direction.
+            wake?.Move(next, velocity, course.SurfaceHeight, Vector3.forward);
             whaleBody.MovePosition(next);
             sphereBody.MovePosition(next + anchorWorldOffset);
             if (integratedRoute && routeElapsed >= routeDuration)
             {
                 phase = RoutePhase.WaitingForExit;
+                wake?.Stop();
                 hull.enabled = false;
                 course.Hide();
             }
         }
 
+        private void BeginRecovery(WhaleSurfObstacle obstacle)
+        {
+            Bounds footprint = hull.bounds;
+            Vector3 hullOffset = footprint.center - whaleBody.position;
+            Vector3 anchorWorldOffset = whaleBody.rotation * anchorOffset;
+            float limit = integratedRoute
+                ? routeStopZ - anchorWorldOffset.z + hullOffset.z
+                : float.PositiveInfinity;
+            recoverToExit = !course.TryFindRecovery(obstacle, footprint, channelCentreX,
+                channelWidth, limit, recoveryClearance, out Vector3 centre);
+            recoveryDestination = recoverToExit
+                ? new Vector3(channelCentreX - anchorWorldOffset.x, waterHeight,
+                    routeStopZ - anchorWorldOffset.z)
+                : centre - hullOffset;
+            recoveryDestination.y = waterHeight;
+            course.ExcludeRecoverySkips(runController.Tasks, footprint.center.z,
+                recoveryDestination.z + hullOffset.z - footprint.extents.z);
+            recoveryStart = whaleBody.position;
+            recoveryElapsed = 0f;
+            lateralVelocity = 0f;
+            phase = RoutePhase.Recovering;
+            hull.enabled = false;
+            wake?.Stop();
+            player.DiscardBufferedInput();
+            runController.SetCarrierRecovery(true);
+        }
+
+        private void TickRecovery()
+        {
+            player.DiscardBufferedInput();
+            recoveryElapsed += Time.fixedDeltaTime;
+            float progress = Mathf.Clamp01(recoveryElapsed / sinkSeconds);
+            Vector3 sunk = recoveryStart + Vector3.down * (sinkDepth * Mathf.SmoothStep(0f, 1f, progress));
+            Vector3 anchorWorldOffset = whaleBody.rotation * anchorOffset;
+            if (progress < 1f)
+            {
+                whaleBody.MovePosition(sunk);
+                sphereBody.MovePosition(sunk + anchorWorldOffset);
+                return;
+            }
+
+            whaleBody.position = recoveryDestination;
+            transform.position = recoveryDestination;
+            sphereBody.position = recoveryDestination + anchorWorldOffset;
+            player.transform.position = sphereBody.position;
+            wake?.ResetAt(recoveryDestination, course.SurfaceHeight, course.SurfaceMaterial);
+            hitFeedback?.Clear();
+            nextHitAllowedAt = Time.time + recoveryProtectionSeconds;
+            if (recoverToExit)
+            {
+                phase = RoutePhase.WaitingForExit;
+                course.Hide();
+            }
+            else
+            {
+                if (integratedRoute)
+                {
+                    float remainingSeconds = Mathf.Max(Time.fixedDeltaTime, routeDuration - routeElapsed);
+                    forwardSpeed = Mathf.Max(0f, routeStopZ - anchorWorldOffset.z - recoveryDestination.z) / remainingSeconds;
+                }
+                phase = RoutePhase.Surfing;
+                hull.enabled = true;
+            }
+            runController.SetCarrierRecovery(false);
+        }
+
         private void BeginExitJump(float floorHeight)
         {
+            runController.SetCarrierRecovery(false);
             // The whale is stationary before the bridge throughout this jump.
             phase = RoutePhase.ExitJump;
             runController?.GetComponent<GameSequenceCoordinator>()?.Notify(GameSequenceCoordinator.SequencePhase.Return);
@@ -315,6 +452,8 @@ namespace EndlessRollball
 
         private void FinishRoute()
         {
+            hitFeedback?.Clear();
+            wake?.Stop();
             surfing = false;
             integratedRoute = false;
             phase = RoutePhase.None;
@@ -359,12 +498,23 @@ namespace EndlessRollball
             if (obstacle == null) return;
             nextHitAllowedAt = Time.time + 1.5f;
             surfHits++;
+            Vector3 direction = other.bounds.center - hull.bounds.center;
+            direction.y = 0f;
+            if (direction.sqrMagnitude < .001f)
+                direction = Vector3.forward;
+            Vector3 probe = hull.bounds.center + direction.normalized * (hull.bounds.size.magnitude + 1f);
+            Vector3 contact = hull.ClosestPoint(probe);
+            contact.y = course.SurfaceHeight + .12f;
+            hitFeedback?.React(contact, course.SurfaceMaterial, hitSoundVolume, hitFlinchDuration, hitFlinchDepth);
             runController.Tasks.RecordEventNavigation(obstacle.GetInstanceID(),false);
+            BeginRecovery(obstacle);
             EndlessRollball.Infrastructure.RuntimeLog.Info($"[WhaleHit] {obstacle.name}; total hits: {surfHits}", this);
         }
 
         private void OnDisable()
         {
+            hitFeedback?.Clear();
+            wake?.Clear();
             waitingAtEntry = false;
             if (surfing && sphereBody != null)
             {

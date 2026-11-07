@@ -3,6 +3,7 @@ using EndlessRollball.Track;
 
 namespace EndlessRollball
 {
+    [DefaultExecutionOrder(100)]
     [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
     public sealed class PhoenixFlightController : MonoBehaviour
     {
@@ -18,7 +19,7 @@ namespace EndlessRollball
         [SerializeField, Min(.1f)] private float steeringSpeed = 5f;
         [SerializeField, Min(.1f)] private float steeringAcceleration = 20f;
         [SerializeField, Min(2f)] private float channelWidth = 12f;
-        [SerializeField] private float flightHeight = 3f;
+        [SerializeField] private float flightHeight = .6f;
 
         [Header("Bridge handoffs")]
         [SerializeField, Min(2f)] private float boardingTakeoffDistance = 8f;
@@ -29,8 +30,8 @@ namespace EndlessRollball
         [SerializeField, Min(.1f)] private float handoffJumpHeight = 2f;
 
         [Header("Flying camera")]
-        [SerializeField] private Vector3 cameraExtraOffset = new Vector3(0f, 1.5f, -6f);
-        [SerializeField] private float cameraLookAhead = 0f;
+        [SerializeField] private Vector3 cameraExtraOffset = new Vector3(0f, 2f, -6f);
+        [SerializeField] private float cameraLookAhead = 8f;
 
         private enum RoutePhase { None, Boarding, WaitingForFlight, Flying, WaitingForExit, ExitJump }
         private RoutePhase phase;
@@ -118,6 +119,7 @@ namespace EndlessRollball
             // Keep the anchor and preview in sync before the next physics step.
             transform.position = position;
             hull.enabled = false;
+            flightVisual?.SetSteering(0f);
             visual.SetActive(true);
             waitingAtEntry = true;
             retirePhoenixAtZ = float.PositiveInfinity;
@@ -160,6 +162,7 @@ namespace EndlessRollball
             sphereBody.detectCollisions = false;
             sphereBody.interpolation = RigidbodyInterpolation.Interpolate;
             lateralVelocity = 0f;
+            flightVisual?.SetSteering(0f);
             flightHits = 0;
             nextHitAllowedAt = 0f;
             startedAt = Time.time;
@@ -222,8 +225,25 @@ namespace EndlessRollball
         {
             hull.enabled = true;
             course.Show(phoenixBody.position, channelCentreX, forwardSpeed,
-                channelWidth, flightHeight, transform);
+                channelWidth, flightHeight, transform, runController.Generator.LavaSurfaceHeight);
 
+        }
+
+        private void LateUpdate()
+        {
+            if (!flying || sphereBody == null || ballAnchor == null ||
+                runController == null ||
+                runController.State != SessionFlowState.SpecialEvent || Time.timeScale <= 0f)
+                return;
+
+            bool carrying = phase == RoutePhase.WaitingForFlight ||
+                            phase == RoutePhase.Flying || phase == RoutePhase.WaitingForExit;
+            if (!carrying) return;
+
+            // Run after PhoenixFlightVisual so the sphere follows the animated
+            // feet, including their bob and bank, without interpolation lag.
+            sphereBody.interpolation = RigidbodyInterpolation.None;
+            sphereBody.position = ballAnchor.position;
         }
 
         private void FixedUpdate()
@@ -256,7 +276,6 @@ namespace EndlessRollball
             if (phase == RoutePhase.WaitingForFlight)
             {
                 player.DiscardBufferedInput();
-                sphereBody.MovePosition(phoenixBody.position + phoenixBody.rotation * anchorOffset);
                 if (Time.time >= flightStartNotBefore)
                 {
                     phase = RoutePhase.Flying;
@@ -301,11 +320,13 @@ namespace EndlessRollball
             float hullOffsetX = transform.TransformVector(hull.center).x;
             next.x = Mathf.Clamp(next.x, channelCentreX - halfWidth - hullOffsetX,
                 channelCentreX + halfWidth - hullOffsetX);
+            flightVisual?.SetSteering((next.x - phoenixBody.position.x) /
+                (Mathf.Max(.1f, steeringSpeed) * Time.fixedDeltaTime));
             phoenixBody.MovePosition(next);
-            sphereBody.MovePosition(next + anchorWorldOffset);
             if (integratedRoute && routeElapsed >= routeDuration)
             {
                 phase = RoutePhase.WaitingForExit;
+                flightVisual?.SetSteering(0f);
                 hull.enabled = false;
                 course.Hide();
             }
@@ -314,7 +335,9 @@ namespace EndlessRollball
         private void BeginExitJump(float floorHeight)
         {
             // The phoenix is stationary before the bridge throughout this jump.
+            sphereBody.interpolation = RigidbodyInterpolation.Interpolate;
             phase = RoutePhase.ExitJump;
+            flightVisual?.SetSteering(0f);
             runController?.GetComponent<GameSequenceCoordinator>()?.Notify(GameSequenceCoordinator.SequencePhase.Return);
             jumpElapsed = 0f;
             jumpStart = sphereBody.position;

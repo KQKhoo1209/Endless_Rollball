@@ -97,7 +97,7 @@ namespace EndlessRollball.Track
         internal TrackGenerator Generator => trackGenerator;
         internal SessionTaskTracker Tasks => taskTracker;
         public double ActiveDurationSeconds => activeSeconds + (State == SessionFlowState.Running ? Math.Max(0d, Time.timeAsDouble - activeIntervalStart)
-                : State == SessionFlowState.SpecialEvent && physicalSpecialEvent ? Math.Max(0d, Time.timeAsDouble - specialEventStartedAt) : 0d);
+                : State == SessionFlowState.SpecialEvent && physicalSpecialEvent && !carrierRecovery ? Math.Max(0d, Time.timeAsDouble - specialEventStartedAt) : 0d);
 
         private TrackGenerator subscribedGenerator;
         private GameObject finishGateInstance;
@@ -126,6 +126,8 @@ namespace EndlessRollball.Track
         private Renderer[] respawnRenderers = Array.Empty<Renderer>();
         private bool[] rendererEnabledBeforeFlash = Array.Empty<bool>();
         private bool physicalSpecialEvent;
+        private bool carrierRecovery;
+        private bool recoveryCameraWasEnabled;
         private bool pausedCarrierEvent;
 
         internal void SetWhaleCameraFraming(bool active, Vector3 extraOffset, float lookAhead) =>
@@ -283,7 +285,8 @@ namespace EndlessRollball.Track
             if (carrierActive)
             {
                 // Commit this interval so the paused HUD retains event time.
-                activeSeconds += Math.Max(0d, Time.timeAsDouble - specialEventStartedAt);
+                if (!carrierRecovery)
+                    activeSeconds += Math.Max(0d, Time.timeAsDouble - specialEventStartedAt);
                 specialEventStartedAt = Time.timeAsDouble;
             }
             else if (State == SessionFlowState.Running)
@@ -313,6 +316,7 @@ namespace EndlessRollball.Track
 
             specialEventStartedAt = Time.timeAsDouble;
 
+            carrierRecovery = false;
             physicalSpecialEvent = keepPhysicsRunning;
             State = SessionFlowState.SpecialEvent;
 
@@ -326,14 +330,46 @@ namespace EndlessRollball.Track
             return true;
         }
 
+        internal void SetCarrierRecovery(bool active)
+        {
+            if (State != SessionFlowState.SpecialEvent || !physicalSpecialEvent || carrierRecovery == active)
+                return;
+            if (active)
+            {
+                activeSeconds += Math.Max(0d, Time.timeAsDouble - specialEventStartedAt);
+                recoveryCameraWasEnabled = gameplayCameraFollow != null && gameplayCameraFollow.enabled;
+                if (gameplayCameraFollow != null)
+                    gameplayCameraFollow.enabled = false;
+            }
+            else
+            {
+                if (gameplayCameraFollow != null && !loadingHold)
+                    gameplayCameraFollow.enabled = recoveryCameraWasEnabled;
+                if (ownsClock)
+                    cameraWasEnabled = recoveryCameraWasEnabled;
+            }
+            carrierRecovery = active;
+            specialEventStartedAt = Time.timeAsDouble;
+            if (!active && gameplayCameraFollow is CameraFollow follow)
+                follow.SnapToTarget();
+        }
+
         internal void EndSpecialEvent(double playedSeconds)
         {
             if (State != SessionFlowState.SpecialEvent) return;
             double eventSeconds = physicalSpecialEvent
-                ? Math.Max(0d, Time.timeAsDouble - specialEventStartedAt)
+                ? (carrierRecovery ? 0d : Math.Max(0d, Time.timeAsDouble - specialEventStartedAt))
                 : Math.Max(0d, Math.Min(45d, playedSeconds));
 
+            if (carrierRecovery)
+            {
+                if (gameplayCameraFollow != null)
+                    gameplayCameraFollow.enabled = recoveryCameraWasEnabled;
+                if (ownsClock)
+                    cameraWasEnabled = recoveryCameraWasEnabled;
+            }
             physicalSpecialEvent = false;
+            carrierRecovery = false;
             activeSeconds += eventSeconds;
             taskTracker.SetScoringSuspended(false);
             if (!loadingHold) ReleaseClockAndCamera();

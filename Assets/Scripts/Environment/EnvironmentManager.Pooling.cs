@@ -125,7 +125,7 @@ namespace EndlessRollball.Scenery
             activeScenery.Add(segment, pair);
             if (slot.IsTunnel)
                 RegisterJourneyTunnel(segment, segmentIndex, slot.ZoneId);
-            instance.SetActive(!hidden && !IsCarrierSceneryHidden(slot.Theme));
+            instance.SetActive(!hidden);
             segment.SetPresentationVisible(!hidden);
         }
 
@@ -145,7 +145,6 @@ namespace EndlessRollball.Scenery
 
         public void EndRun()
         {
-            SetBeachSurfPresentation(false);
             runPreparationVersion++;
             sceneryReady = false;
             StreamingHoldRequired = false;
@@ -224,7 +223,7 @@ namespace EndlessRollball.Scenery
                     continue;
                 pair.HiddenForTransition = false;
                 if (pair.Instance != null)
-                    pair.Instance.SetActive(!IsCarrierSceneryHidden(pair.Theme));
+                    pair.Instance.SetActive(true);
                 if (pair.Track != null)
                     pair.Track.SetPresentationVisible(true);
                 return false;

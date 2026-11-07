@@ -7,6 +7,15 @@ namespace EndlessRollball.Track
         [Header("Beach surfing")]
         [SerializeField] private TrackSegment beachSurfSeaPrefab;
 
+        private void ConfigureSeaSurface(TrackSegment segment)
+        {
+            Transform visual = segment.transform.Find("RoadVisual/SeaVisual");
+            if (visual == null) return;
+            Vector3 position = visual.localPosition;
+            position.y = WaterSurfCourse.SeaSurfaceOffset;
+            visual.localPosition = position;
+        }
+
         private bool beachSurfReserved;
         private int beachSurfFirstIndex;
         private int beachSurfExitIndex;
@@ -124,7 +133,6 @@ namespace EndlessRollball.Track
         internal void SetBeachSurfRunning(bool running)
         {
             beachSurfRunning = running;
-            environmentManager?.SetBeachSurfPresentation(running);
         }
 
         internal bool TryGetBeachSurfExitFloor(out float floorHeight)
@@ -163,7 +171,6 @@ namespace EndlessRollball.Track
 
         private void ResetBeachSurfReservation()
         {
-            environmentManager?.SetBeachSurfPresentation(false);
             beachSurfReserved = false;
             beachSurfRunning = false;
             beachSurfFirstIndex = -1;

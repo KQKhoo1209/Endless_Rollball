@@ -6,9 +6,6 @@ namespace EndlessRollball
     [RequireComponent(typeof(GameplayRunController))]
     public sealed class StreetBouncePadSpawner : MonoBehaviour
     {
-        [Min(0f)]
-        public float spawnAfterSeconds = 60f;
-
         [SerializeField]
         private BouncePadLauncher bouncePadPrefab;
 
@@ -18,67 +15,59 @@ namespace EndlessRollball
         private GameplayRunController run;
         private GameSequenceCoordinator sequence;
         private BouncePadLauncher pad;
-        private float nextScanAt;
-        private bool spawned;
+        private TrackSegment padRoad;
+        private float? targetZ;
+        private bool placed;
 
         private void Awake()
         {
             run = GetComponent<GameplayRunController>();
-            sequence=GetComponent<GameSequenceCoordinator>();
+            sequence = GetComponent<GameSequenceCoordinator>();
         }
 
         private void Update()
         {
-            if(run.State==SessionFlowState.Preparing) {if(pad!=null)Destroy(pad.gameObject);pad=null;spawned=false;nextScanAt=0;return;}
-            if(sequence!=null) {
-                if(!sequence.Available || !sequence.IsStreet)return;
-                sequence.Window(out float earliest,out float target,out float latest);
-                if(sequence.Elapsed>latest) {sequence.Notify(GameSequenceCoordinator.SequencePhase.RoadAfterEvent);Debug.LogWarning("[Sequence] Cloud entry window missed. Check clear Street approach and launch prefab.",this);return;}
-                // The pad lies 25-80 m ahead. Prepare visibly before arrival.
-                if(sequence.Elapsed<target-55f/Mathf.Max(.1f,run.PlayerBall.ForwardSpeed))return;
-            }
-            if (run.State != SessionFlowState.Running)
+            if (run.State != SessionFlowState.Running || pad == null ||
+                pad.HasLaunched || !pad.gameObject.activeInHierarchy)
                 return;
 
             BallMovement player = run.PlayerBall;
+            // The trigger can be cleared by a jump. Keep the compulsory entry.
+            if (player != null && player.transform.position.z >= pad.transform.position.z)
+                pad.TryLaunch(player);
+        }
 
-            if (pad != null)
-            {
-                // Preserve compulsory entry if the player jumps
-                // above the pad's trigger.
-                if (!pad.HasLaunched &&
-                    player.transform.position.z >= pad.transform.position.z)
-                {
-                    pad.TryLaunch(player);
-                }
-
-                return;
-            }
-
-            if (spawned ||
-                bouncePadPrefab == null ||
-                cloudEvent == null ||
-                !cloudEvent.IsReady ||
-                (sequence==null && run.ActiveDurationSeconds < spawnAfterSeconds) ||
-                Time.unscaledTime < nextScanAt)
+        internal void PlanPlacement(float streetStartZ, float forwardSpeed)
+        {
+            if (targetZ.HasValue || bouncePadPrefab == null || cloudEvent == null ||
+                sequence == null || !sequence.Eligible)
                 return;
 
-            nextScanAt = Time.unscaledTime + .5f;
+            sequence.Window(out _, out float target, out _);
+            targetZ = streetStartZ + target * Mathf.Max(.1f, forwardSpeed);
+        }
 
-            if (!run.Generator.TryFindCloudGateway(
-                    player.transform.position.z,
-                    run.Tasks,
-                    out Vector3 position,
-                    out _))
+        internal bool ReservesRoad(float centreZ) =>
+            targetZ.HasValue && Mathf.Abs(centreZ - targetZ.Value) < 48f;
+
+        internal void PlaceOnRoad(TrackSegment road)
+        {
+            if (placed || !targetZ.HasValue || run.PlayerBall == null)
                 return;
 
+            Vector3 position = (road.EntryAnchor.position + road.ExitAnchor.position) * .5f;
+            if (!ReservesRoad(position.z) ||
+                position.z < targetZ.Value - TrackSegment.ContractLength * .5f)
+                return;
+
+            BallMovement player = run.PlayerBall;
             position.x = player.Corridor.CentreX;
 
             pad = Instantiate(
                 bouncePadPrefab,
                 position,
                 Quaternion.identity,
-                transform);
+                road.PresentationTransform);
 
             pad.Configure(cloudEvent);
 
@@ -98,7 +87,27 @@ namespace EndlessRollball
                 pad.transform.localScale = scale;
             }
 
-            spawned = true;
+            padRoad = road;
+            placed = true;
+        }
+
+        internal void ReleaseRoad(TrackSegment road)
+        {
+            if (padRoad != road) return;
+            if (pad != null)
+            {
+                pad.gameObject.SetActive(false);
+                Destroy(pad.gameObject);
+            }
+            pad = null;
+            padRoad = null;
+        }
+
+        internal void ResetPlacement()
+        {
+            ReleaseRoad(padRoad);
+            targetZ = null;
+            placed = false;
         }
     }
 }
