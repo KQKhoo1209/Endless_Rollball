@@ -1,0 +1,6 @@
+Source: https://github.com/adabru/BleWinrtDll
+Revision: dc2ccd20bf6687250a0f8a3494d6ef87db92ff6a
+Binary: BleWinrtDll-UnityPackage/Plugins/BleWinrtDll.dll (Windows x64)
+License: license_wtfpl.txt
+The C# ABI declarations in WindowsBleImuTransport.cs are adapted from Runtime/BleApi.cs.
+Windows builds on other PCs may need the Microsoft Visual C++ x64 Redistributable.
