@@ -13,9 +13,10 @@ Shader "EndlessRollball/Surface Ripple" {
  HLSLPROGRAM
  #pragma vertex vert
  #pragma fragment frag
+ #pragma multi_compile_fog
  #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
  struct Attributes {float4 positionOS:POSITION; float2 uv:TEXCOORD0; half4 color:COLOR;};
- struct Varyings {float4 positionCS:SV_POSITION;float2 uv:TEXCOORD0;half4 color:COLOR;};
+ struct Varyings {float4 positionCS:SV_POSITION;float2 uv:TEXCOORD0;half4 color:COLOR;half fog:TEXCOORD1;};
  CBUFFER_START(UnityPerMaterial)
  half4 _Color;float _WaveHeight,_WaveFrequency,_WaveSpeed;
  CBUFFER_END
@@ -23,12 +24,12 @@ Shader "EndlessRollball/Surface Ripple" {
  Varyings o;float3 p=TransformObjectToWorld(v.positionOS.xyz);
  float t=_Time.y*_WaveSpeed;
  p.y+=(sin(p.x*_WaveFrequency+t)+sin(p.z*_WaveFrequency*0.7+t*0.8))*0.5*_WaveHeight;
- o.positionCS=TransformWorldToHClip(p);o.uv=v.uv;o.color=v.color*_Color;return o;
+ o.positionCS=TransformWorldToHClip(p);o.uv=v.uv;o.color=v.color*_Color;o.fog=ComputeFogFactor(o.positionCS.z);return o;
  }
  half4 frag(Varyings i):SV_Target {
  float r=length(i.uv*2-1);
  float ring=smoothstep(0.66,0.78,r)*(1-smoothstep(0.78,0.94,r));
- return half4(i.color.rgb,i.color.a*ring);
+ return half4(MixFog(i.color.rgb,i.fog),i.color.a*ring);
  }
  ENDHLSL
  }
