@@ -19,7 +19,7 @@ namespace EndlessRollball.Tests
             PhoenixLavaHazard hazard = prefab.GetComponent<PhoenixLavaHazard>();
             Assert.IsNotNull(hazard);
             var data = new SerializedObject(hazard);
-            foreach (string field in new[] { "hazardVisual", "warningVisual", "hitCollider", "sparkMaterial" })
+            foreach (string field in new[] { "hazardVisual", "hitCollider", "sparkMaterial" })
                 Assert.IsNotNull(data.FindProperty(field).objectReferenceValue, name + ": " + field);
         }
 
@@ -32,7 +32,7 @@ namespace EndlessRollball.Tests
             PhoenixLavaCourse course = prefab.GetComponentInChildren<PhoenixLavaCourse>(true);
             Assert.IsNotNull(course);
             var data = new SerializedObject(course);
-            foreach (string field in new[] { "pillarPrefab", "eruptionPrefab", "bouncingBallPrefab" })
+            foreach (string field in new[] { "eruptionPrefab", "bouncingBallPrefab" })
                 Assert.IsNotNull(data.FindProperty(field).objectReferenceValue, field);
         }
     }

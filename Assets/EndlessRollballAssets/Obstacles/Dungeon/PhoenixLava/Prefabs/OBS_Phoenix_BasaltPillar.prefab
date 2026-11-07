@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 7100000000000002}
   - component: {fileID: 7100000000000003}
   m_Layer: 0
-  m_Name: BasaltPillar
+  m_Name: OBS_Phoenix_BasaltPillar
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -32,7 +32,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7100000000000005}
-  - {fileID: 7100000000000009}
+  - {fileID: 2092221359823999440}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &7100000000000002
@@ -70,7 +70,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   kind: 0
   hazardVisual: {fileID: 7100000000000005}
-  warningVisual: {fileID: 7100000000000011}
+  warningVisual: {fileID: 0}
   hitCollider: {fileID: 7100000000000002}
   sparkMaterial: {fileID: 2100000, guid: 0052e4040a344370bd2ef7ea3a046440, type: 2}
 --- !u!1 &7100000000000004
@@ -113,7 +113,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7100000000000004}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 4300000, guid: 23e35ecb9a7d1da45a25886cf81053f4, type: 2}
 --- !u!23 &7100000000000007
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -139,7 +139,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a19f82b7dd0f45e997f0a0418fa1fd3e, type: 2}
+  - {fileID: 2100000, guid: e72ff4a9fee8aa6498fd6d8c7fd384a0, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -163,7 +163,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &7100000000000008
+--- !u!1 &4881105794278924659
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -171,46 +171,46 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7100000000000009}
-  - component: {fileID: 7100000000000010}
-  - component: {fileID: 7100000000000011}
+  - component: {fileID: 2092221359823999440}
+  - component: {fileID: 8431400416541372139}
+  - component: {fileID: 3916445362996023428}
   m_Layer: 0
-  m_Name: WarningVisual
+  m_Name: Rock Footing
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7100000000000009
+--- !u!4 &2092221359823999440
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7100000000000008}
+  m_GameObject: {fileID: 4881105794278924659}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.04, z: 0}
-  m_LocalScale: {x: 2.8, y: 0.02, z: 2.8}
+  m_LocalPosition: {x: 0, y: 0.08, z: 0}
+  m_LocalScale: {x: 2.65, y: 0.2, z: 2.65}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7100000000000001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &7100000000000010
+--- !u!33 &8431400416541372139
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7100000000000008}
-  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
---- !u!23 &7100000000000011
+  m_GameObject: {fileID: 4881105794278924659}
+  m_Mesh: {fileID: 4300000, guid: 99355ff7e7630df42adf1a7a72e0e989, type: 2}
+--- !u!23 &3916445362996023428
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7100000000000008}
+  m_GameObject: {fileID: 4881105794278924659}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -229,7 +229,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: b67517d61e0340c995f522324a387b41, type: 2}
+  - {fileID: 2100000, guid: e72ff4a9fee8aa6498fd6d8c7fd384a0, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -238,7 +238,7 @@ MeshRenderer:
   m_LightProbeVolumeOverride: {fileID: 0}
   m_ScaleInLightmap: 1
   m_ReceiveGI: 1
-  m_PreserveUVs: 0
+  m_PreserveUVs: 1
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
   m_StitchLightmapSeams: 1

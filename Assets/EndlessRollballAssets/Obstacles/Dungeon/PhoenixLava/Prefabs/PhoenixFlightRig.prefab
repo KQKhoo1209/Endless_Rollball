@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7100000000000001}
   m_Layer: 0
-  m_Name: PhoenixLavaEvent
+  m_Name: PhoenixFlightRig
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -66,7 +66,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7100000000000008}
-  - {fileID: 7100000000000011}
   m_Father: {fileID: 7100000000000001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!54 &7100000000000004
@@ -136,13 +135,21 @@ MonoBehaviour:
   ballAnchor: {fileID: 7100000000000011}
   visual: {fileID: 7100000000000007}
   course: {fileID: 7100000000000014}
-  flightVisual: {fileID: 7100000000000009}
-  flightHeight: 3
-  channelWidth: 12
+  forwardSpeed: 6
   steeringSpeed: 5
   steeringAcceleration: 20
-  cameraExtraOffset: {x: 0, y: 1.5, z: -6}
-  cameraLookAhead: 0
+  channelWidth: 12
+  flightHeight: 0.6
+  boardingTakeoffDistance: 8
+  waitingPhoenixDistance: 5
+  exitStopDistance: 6
+  bridgeLandingDistance: 6
+  handoffJumpSeconds: 0.9
+  handoffJumpHeight: 2
+  cameraExtraOffset: {x: 0, y: 2, z: -6}
+  cameraLookAhead: 8
+  flightVisual: {fileID: 7100000000000009}
+  flightHits: 0
 --- !u!1 &7100000000000007
 GameObject:
   m_ObjectHideFlags: 0
@@ -197,6 +204,10 @@ MonoBehaviour:
   wingspan: 1.4
   flapDegrees: 22
   flapSeconds: 0.75
+  bodyBob: 0.1
+  maximumYaw: 18
+  maximumBank: 6
+  turnResponse: 6
 --- !u!1 &7100000000000010
 GameObject:
   m_ObjectHideFlags: 0
@@ -221,12 +232,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7100000000000010}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.000014765012, y: -0.28213644, z: 0}
+  m_LocalScale: {x: 0.5642729, y: 0.5642729, z: 0.5642729}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7100000000000003}
+  m_Father: {fileID: 7100000000000056}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &7100000000000012
 GameObject:
@@ -272,7 +283,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1ca863fb69354931a980d47fd0271169, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pillarPrefab: {fileID: 7100000000000003, guid: 830a74466a7d4c9eba93149744386f66, type: 3}
   eruptionPrefab: {fileID: 7100000000000003, guid: f9bdfedb8cf7453eae93f31df9ab2fd7, type: 3}
   bouncingBallPrefab: {fileID: 7100000000000003, guid: 9bcd47f4185e4435a30e04194af625c6, type: 3}
   duration: 45
@@ -300,8 +310,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7100000000000015}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: 0.000051217405, z: -0, w: 1}
+  m_LocalPosition: {x: -0.24425733, y: 0.2863458, z: -0.04092891}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -332,8 +342,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7100000000000017}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: 0.000051217405, z: -0, w: 1}
+  m_LocalPosition: {x: 0.24600849, y: 0.28277096, z: -0.04041675}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -366,8 +376,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7100000000000019}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: -0.000051217405, z: -0, w: 1}
+  m_LocalPosition: {x: -0.25746948, y: -0.28464997, z: 0.04063082}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -849,8 +859,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7100000000000041}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: -0.000051217405, z: -0, w: 1}
+  m_LocalPosition: {x: 0.25568044, y: -0.28839356, z: 0.041219696}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1159,6 +1169,7 @@ Transform:
   m_Children:
   - {fileID: 7100000000000052}
   - {fileID: 7100000000000038}
+  - {fileID: 7100000000000011}
   m_Father: {fileID: 7100000000000058}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &7100000000000057
@@ -1278,8 +1289,8 @@ Transform:
   m_GameObject: {fileID: 7100000000000061}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 0.000026166439, y: 0.8, z: 0}
+  m_LocalScale: {x: 1.7721921, y: 1.7721921, z: 1.7721921}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7100000000000048}
