@@ -129,6 +129,7 @@ namespace EndlessRollball.Track
         private bool carrierRecovery;
         private bool recoveryCameraWasEnabled;
         private bool pausedCarrierEvent;
+        private bool sensorInputInterrupted;
 
         internal void SetWhaleCameraFraming(bool active, Vector3 extraOffset, float lookAhead) =>
             SetCarrierCameraFraming(active, extraOffset, lookAhead);
@@ -182,6 +183,15 @@ namespace EndlessRollball.Track
 
         private void Update()
         {
+            if (ballMovement != null && !ballMovement.IsSelectedInputReady &&
+                (State == SessionFlowState.Running || State == SessionFlowState.Paused || State == SessionFlowState.Streaming ||
+                 State == SessionFlowState.SpecialEvent && physicalSpecialEvent))
+            {
+                sensorInputInterrupted = true;
+                taskTracker.SetScoringSuspended(true);
+                PauseSession();
+                return;
+            }
             UpdateRespawnFlash();
             if (State == SessionFlowState.Running && ballMovement.transform.position.y < fallThreshold)
             {
@@ -385,6 +395,12 @@ namespace EndlessRollball.Track
         {
             if (State != SessionFlowState.Paused)
                 return;
+            if (!ballMovement.IsSelectedInputReady) return;
+            if (sensorInputInterrupted)
+            {
+                taskTracker.SetScoringSuspended(pausedCarrierEvent);
+                sensorInputInterrupted = false;
+            }
             ballMovement.DiscardBufferedInput();
             discardInputThroughFrame = Time.frameCount;
             sessionUI.HidePanels();

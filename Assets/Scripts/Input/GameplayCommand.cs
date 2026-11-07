@@ -2,16 +2,19 @@ using UnityEngine;
 
 public readonly struct GameplayCommand
 {
-    public GameplayCommand(float steering, float speedAdjustment, bool jumpPressed)
+    public GameplayCommand(float steering, float speedAdjustment, bool jumpPressed, bool steeringIsPosition = false)
     {
         Steering = Mathf.Clamp(steering, -1f, 1f);
         SpeedAdjustment = Mathf.Clamp(speedAdjustment, -1f, 1f);
         JumpPressed = jumpPressed;
+        SteeringIsPosition = steeringIsPosition;
     }
 
+    // One signed left/right channel: ball position/rate or carrier turn, selected by context.
     public float Steering { get; }
     public float SpeedAdjustment { get; }
     public bool JumpPressed { get; }
+    public bool SteeringIsPosition { get; }
 
     public static GameplayCommand Neutral => new GameplayCommand(0f, 0f, false);
 }

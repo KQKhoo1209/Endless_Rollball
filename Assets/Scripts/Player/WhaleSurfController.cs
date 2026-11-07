@@ -68,6 +68,8 @@ namespace EndlessRollball
         private bool integratedRoute;
         private bool waitingAtEntry;
         private float lateralVelocity;
+        private Quaternion visualRestRotation;
+        private float visualTurn;
         private float channelCentreX;
         private float startedAt;
         private Vector3 anchorOffset;
@@ -98,6 +100,7 @@ namespace EndlessRollball
 
         private void Awake()
         {
+            if (visual != null) visualRestRotation = visual.transform.localRotation;
             if (visual != null)
                 swimAnimator = visual.GetComponentInChildren<Animator>(true);
             whaleBody = GetComponent<Rigidbody>();
@@ -183,6 +186,7 @@ namespace EndlessRollball
                 keepPhysicsRunning: true, allowRespawnFlashing: bridgeEntry)) return false;
 
             entryPosition = sphereBody.position;
+            player.SetInputContext(EndlessRollball.Imu.ImuControlContext.AvatarRotation);
             entryRotation = sphereBody.rotation;
             savedMovementEnabled = player.enabled;
             savedGravity = sphereBody.useGravity;
@@ -322,6 +326,10 @@ namespace EndlessRollball
             GameplayCommand command = player.ReadEventCommand();
             lateralVelocity = Mathf.MoveTowards(lateralVelocity,
                 command.Steering * steeringSpeed, steeringAcceleration * step);
+            visualTurn = Mathf.Lerp(visualTurn, command.Steering, 1f - Mathf.Exp(-6f * step));
+            if (visual != null)
+                visual.transform.rotation = Quaternion.AngleAxis(visualTurn * 18f, Vector3.up) *
+                    visual.transform.parent.rotation * visualRestRotation;
             Vector3 next = whaleBody.position;
             next.x += lateralVelocity * step;
             next.z += forwardSpeed * step;
@@ -436,6 +444,9 @@ namespace EndlessRollball
 
         private void RestorePlayer(bool resume)
         {
+            player.SetInputContext(EndlessRollball.Imu.ImuControlContext.Road);
+            visualTurn = 0;
+            if (visual != null) visual.transform.localRotation = visualRestRotation;
             sphereBody.constraints = savedConstraints;
             sphereBody.isKinematic = savedKinematic;
             sphereBody.useGravity = savedGravity;

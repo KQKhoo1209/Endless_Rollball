@@ -109,6 +109,21 @@ namespace EndlessRollball.Tutorial
                     bodyText = "Reach LEFT, then RIGHT, jump over the orange barrier, and reach FINISH.\nA / ← left     D / → right     ↑ jump. Take as many tries as you need."; break;
             }
             if (retry != null) bodyText = retry + "\n" + bodyText;
+            if (EndlessRollball.Imu.ImuRuntimeSession.Instance != null && EndlessRollball.Imu.ImuRuntimeSession.Instance.InputRequested)
+            {
+                title = step == Step.Welcome ? "Welcome to Endless Rollball" :
+                    step == Step.Left ? "Move left" : step == Step.Right ? "Move right" :
+                    step == Step.Centre ? "Return to the centre" : step == Step.Jump ? "Jump" :
+                    step == Step.Obstacle ? "Jump over the low barrier" : "Put it together";
+                bodyText = step == Step.Welcome ? "Wrist tilt sets the ball's position across the road. Neutral brings it to the centre. Tilt upward to jump. Forward movement is automatic." :
+                    step == Step.Left ? "Roll your wrist left and hold the tilt to place the ball on the LEFT target. More tilt selects a position farther left." :
+                    step == Step.Right ? "Roll your wrist right and hold the tilt to place the ball on the RIGHT target. More tilt selects a position farther right." :
+                    step == Step.Centre ? "Return your wrist to the calibrated neutral pose. The ball moves back to CENTRE; hold still as it settles." :
+                    step == Step.Jump ? "Tilt your wrist upward to jump, then return to neutral. Practise landing here without forward movement." :
+                    step == Step.Obstacle ? "Tilt upward before the orange barrier, return to neutral, and land beyond it." :
+                    "Reach LEFT, then RIGHT, tilt upward to jump over the barrier, and reach FINISH.";
+                if (retry != null) bodyText = retry + "\n" + bodyText;
+            }
             view.Show(title, bodyText, step == Step.Welcome ? "First-play tutorial" : $"Practice {(int)step} of 6 · Watch the preview, then press Ready",
                 step == Step.Welcome ? "Begin" : "Ready");
             view.SetDemonstration(step == Step.Left ? TutorialDemonstration.Left :
@@ -122,6 +137,7 @@ namespace EndlessRollball.Tutorial
         private void Primary()
         {
             if (busy || paused) return;
+            if (!ball.IsSelectedInputReady) return;
             if (step == Step.Welcome) { Prepare(Step.Left); return; }
             if (step == Step.Complete) { ContinueToGame(); return; }
             view.SetDemonstration(TutorialDemonstration.None);
@@ -143,11 +159,21 @@ namespace EndlessRollball.Tutorial
                 combinedTarget == 0 ? "First: reach the LEFT target. A / ←" :
                 combinedTarget == 1 ? "Good! Next: reach the RIGHT target. D / →" :
                 "Both targets reached! Jump over the orange barrier with ↑, then reach FINISH.";
+            if (EndlessRollball.Imu.ImuRuntimeSession.Instance != null && EndlessRollball.Imu.ImuRuntimeSession.Instance.InputRequested)
+                text = step == Step.Left ? "Roll LEFT and hold the tilt to stay on the highlighted target." :
+                    step == Step.Right ? "Roll RIGHT and hold the tilt to stay on the highlighted target." :
+                    step == Step.Centre ? "Hold your neutral wrist pose to bring the ball back to CENTRE." :
+                    step == Step.Jump ? "Tilt upward to jump, return to neutral, and land." :
+                    step == Step.Obstacle ? "Tilt upward to clear the barrier, then land." :
+                    combinedTarget == 0 ? "Roll LEFT into the first target." :
+                    combinedTarget == 1 ? "Roll RIGHT into the next target." :
+                    "Tilt upward to jump over the barrier, then reach FINISH.";
             view.Show("Your turn", text, $"Practice {(int)step} of 6");
         }
 
         private void Update()
         {
+            if (!ball.IsSelectedInputReady) Pause();
             if (Keyboard.current?.escapeKey.wasPressedThisFrame == true)
             {
                 if (paused) Resume(); else Pause();
@@ -250,14 +276,19 @@ namespace EndlessRollball.Tutorial
         private void Resume()
         {
             if (!paused) return;
+            if (!ball.IsSelectedInputReady) return;
             input.Clear();
             paused = false;
             Time.timeScale = 1;
             view.SetPaused(false);
         }
+        public bool IsPaused => paused;
+        public void ResumeAfterSensorCalibration() => Resume();
+        public void ExitAfterSensorLoss() => Exit();
         private void Exit()
         {
             Resume();
+            Time.timeScale = 1f;
             view.SetDemonstration(TutorialDemonstration.None);
             practising = false;
             ball.StopMotionForCompletion();

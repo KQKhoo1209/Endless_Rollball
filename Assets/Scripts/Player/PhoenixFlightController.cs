@@ -141,6 +141,7 @@ namespace EndlessRollball
                 keepPhysicsRunning: true, allowRespawnFlashing: bridgeEntry)) return false;
 
             entryPosition = sphereBody.position;
+            player.SetInputContext(EndlessRollball.Imu.ImuControlContext.AvatarRotation);
             entryRotation = sphereBody.rotation;
             savedMovementEnabled = player.enabled;
             savedGravity = sphereBody.useGravity;
@@ -347,6 +348,7 @@ namespace EndlessRollball
 
         private void RestorePlayer(bool resume)
         {
+            player.SetInputContext(EndlessRollball.Imu.ImuControlContext.Road);
             sphereBody.constraints = savedConstraints;
             sphereBody.isKinematic = savedKinematic;
             sphereBody.useGravity = savedGravity;

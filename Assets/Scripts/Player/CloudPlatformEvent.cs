@@ -446,6 +446,7 @@ namespace EndlessRollball
             firstCloudRecoveryTime = Time.time + landingTime + .5f;
             lastScoredCloud=0;
             physicalLaunchTime = Time.time;
+            player.SetInputContext(EndlessRollball.Imu.ImuControlContext.Cloud);
             runController.GetComponent<GameSequenceCoordinator>()?.Notify(GameSequenceCoordinator.SequencePhase.Event);
             physicalFinishRequested = false;
             descendingToStreet = false;
@@ -615,6 +616,7 @@ namespace EndlessRollball
 
             gameplaySphere.GroundContact -= HandleStreetLanding;
             gameplaySphere.SetCloudDescent(false);
+            gameplaySphere.SetInputContext(EndlessRollball.Imu.ImuControlContext.Road);
             gameplaySphere.DiscardBufferedInput();
 
             for (int i = 0; i < platforms.Length; i++)
@@ -698,6 +700,7 @@ namespace EndlessRollball
             {
                 gameplaySphere.GroundContact -= HandleStreetLanding;
                 gameplaySphere.SetCloudDescent(false);
+                gameplaySphere.SetInputContext(EndlessRollball.Imu.ImuControlContext.Road);
             }
 
             ReleaseSimulation();

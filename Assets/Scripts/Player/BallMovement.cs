@@ -16,6 +16,9 @@ public sealed class BallMovement : MonoBehaviour
     private float maxLateralSpeed = 7f;
     [SerializeField, Min(0f)]
     private float steeringResponse = 8f;
+    [Tooltip("How quickly tilt-to-position input approaches its target across the road.")]
+    [SerializeField, Min(.1f)]
+    private float positionResponse = 3f;
     [Header("Forward Speed")]
     [SerializeField, Min(0f)]
     private float baseForwardSpeed = 7f;
@@ -64,6 +67,9 @@ public sealed class BallMovement : MonoBehaviour
 
     private Rigidbody ballRigidbody;
     private IGameplayInput gameplayInput;
+    private EndlessRollball.Imu.ImuGameplayInput imuInput;
+    public bool IsSelectedInputReady => imuInput == null || imuInput.IsInputReady;
+    public void SetInputContext(EndlessRollball.Imu.ImuControlContext context) => imuInput?.SetContext(context);
     private bool isGrounded;
     private float lastJumpTime = float.NegativeInfinity;
     private bool movementStopped;
@@ -85,6 +91,7 @@ public sealed class BallMovement : MonoBehaviour
         ballRigidbody = GetComponent<Rigidbody>();
         sphereCollider = GetComponent<SphereCollider>();
         gameplayInput = ResolveInputProvider();
+        imuInput = GetComponent<EndlessRollball.Imu.ImuGameplayInput>();
         if (gameplayInput == null)
         {
             Debug.LogError($"{nameof(BallMovement)} needs a component that implements {nameof(IGameplayInput)}.", this);
@@ -123,7 +130,7 @@ public sealed class BallMovement : MonoBehaviour
             AirborneObserved?.Invoke();
         GameplayCommand command = gameplayInput.ReadCommand();
         EnforceRoadCorridor();
-        ApplySteering(command.Steering);
+        ApplySteering(command.Steering, command.SteeringIsPosition);
         ApplyForwardSpeed();
         TryJump(command.JumpPressed);
         EnforceRoadCorridor();
@@ -131,14 +138,19 @@ public sealed class BallMovement : MonoBehaviour
         groundCollider = null;
     }
 
-    private void ApplySteering(float steering)
+    private void ApplySteering(float steering, bool steeringIsPosition)
     {
-        float targetLateralSpeed = steering * maxLateralSpeed;
+        float centre = ballRigidbody.position.x + (sphereCollider == null ? 0f : transform.TransformVector(sphereCollider.center).x);
+        float edge = corridor.CentreLimit(SphereRadius);
+        // IMU tilt selects a point across the current corridor. Keyboard input retains
+        // its existing rate control. Use the same acceleration/braking limits for both.
+        float targetCentre = corridor.CentreX + steering * edge;
+        float targetLateralSpeed = steeringIsPosition
+            ? Mathf.Clamp((targetCentre - centre) * positionResponse, -maxLateralSpeed, maxLateralSpeed)
+            : steering * maxLateralSpeed;
         float currentLateralSpeed = ballRigidbody.linearVelocity.x;
         float speedError = targetLateralSpeed - currentLateralSpeed;
         float acceleration = Mathf.Clamp(speedError * steeringResponse, -steeringAcceleration, steeringAcceleration);
-        float centre = ballRigidbody.position.x + (sphereCollider == null ? 0f : transform.TransformVector(sphereCollider.center).x);
-        float edge = corridor.CentreLimit(SphereRadius);
         if ((centre >= corridor.CentreX + edge - .005f && acceleration > 0f) || (centre <= corridor.CentreX - edge + .005f && acceleration < 0f))
             acceleration = 0f;
         ballRigidbody.AddForce(Vector3.right * acceleration, ForceMode.Acceleration);
@@ -299,6 +311,7 @@ public sealed class BallMovement : MonoBehaviour
 
     public void DiscardBufferedInput()
     {
+        imuInput?.ClearTransientInput();
         if (gameplayInput != null)
             gameplayInput.ReadCommand();
     }

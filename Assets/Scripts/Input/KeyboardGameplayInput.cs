@@ -39,10 +39,7 @@ public sealed class KeyboardGameplayInput : MonoBehaviour, IGameplayInput
             keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed,
             keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed);
 
-        float speed = ReadAxis(
-            keyboard.wKey.isPressed, keyboard.sKey.isPressed);
-
-        return new Vector2(steering, speed);
+        return new Vector2(steering, 0f);
     }
 
     private static bool WasJumpPressed()
