@@ -73,7 +73,7 @@ TMP_Text Text(Transform parent, string name, string value, float x, float y, flo
 }
 
 var diagnostics = Text(panel, "LiveSensorReadings", "Waiting for live IMU data. No samples are recorded to disk.", 35, 535, 830, 145, 22);
-var message = Text(connect, "ConnectionDetail", "Power on GAIT-WRIST and select Retry Connection.", 35, 190, 830, 32, 19);
+var message = Text(connect, "ConnectionDetail", "Power on your sensor and select Retry Connection.", 35, 190, 830, 32, 19);
 var retry = footer.Find("RetryConnectionButton").GetComponent<UnityEngine.UI.Button>();
 var disconnectRect = Rect(footer, "DisconnectSensorButton", 400, 40, 220, 100);
 var image = disconnectRect.GetComponent<UnityEngine.UI.Image>() ?? Undo.AddComponent<UnityEngine.UI.Image>(disconnectRect.gameObject);

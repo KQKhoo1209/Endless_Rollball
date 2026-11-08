@@ -85,7 +85,11 @@ public static class BuildSensorReticle
             serialized.ApplyModifiedProperties();
             var device = page.Find("ConnectSensorPanel/SensorDevice").GetComponent<TMP_Text>();
             Undo.RecordObject(device, "Set sensor device label");
-            device.text = "Sensor Device: GAIT-WRIST";
+            device.text = "Sensor Device: ---";
+            device.richText = false;
+            var deviceBinding = new SerializedObject(owner);
+            Set(deviceBinding, "sensorDevice", device);
+            deviceBinding.ApplyModifiedProperties();
             var status = page.Find("ConnectSensorPanel/ConnectionStatus").GetComponent<TMP_Text>();
             Undo.RecordObject(status, "Set disconnected label");
             status.text = "Connection Status: Not connected";
