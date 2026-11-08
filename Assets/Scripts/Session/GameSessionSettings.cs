@@ -17,6 +17,14 @@ public static class GameSessionSettings
     // The ? allows null: nothing selected yet.
     public static GameMode? SelectedMode { get; set; }
     public static DifficultyMode? SelectedDifficulty { get; set; }
+    public static int? PainRating { get; set; }
+    public static int? StressRating { get; set; }
+    public static bool UseReducedFeedback { get; set; }
+    public static void ResetWellbeing()
+    {
+        PainRating = StressRating = null;
+        UseReducedFeedback = false;
+    }
     public static bool HasValidSelection => SelectedMode.HasValue && (SelectedMode == GameMode.Endless || SelectedDifficulty.HasValue);
     // Easy is a fallback for testing GameplayScene directly.
     // StartGame() prevents incomplete menu selections from starting.
@@ -30,6 +38,7 @@ public static class GameSessionSettings
 
     public static void ResetSelection()
     {
+        ResetWellbeing();
         GameplayLoadRequestedAt = null;
         GameplayEntryRoute = "direct";
         SelectedMode = null;

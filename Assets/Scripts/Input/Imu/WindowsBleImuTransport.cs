@@ -81,7 +81,7 @@ namespace EndlessRollball.Imu
                 int initialized = Native.RoInitialize(1);
                 if (initialized < 0) Marshal.ThrowExceptionForHR(initialized);
                 apartmentInitialized = true;
-                Status(ImuConnectionState.Scanning, "Looking for GAIT-WRIST. Close other BLE receiver apps.");
+                Status(ImuConnectionState.Scanning, "Looking for sensor. Close other BLE receiver apps.");
                 Native.StartDeviceScan();
                 loaded = true;
                 double deadline = Now + 15;
@@ -105,8 +105,10 @@ namespace EndlessRollball.Imu
                 }
                 Native.StopDeviceScan();
                 if (stop) return;
-                if (id == null) throw new InvalidOperationException("GAIT-WRIST was not found. Check Bluetooth and sensor power, then retry.");
-                Status(ImuConnectionState.Connecting, "GAIT-WRIST detected. Discovering its motion service...");
+                if (id == null) throw new InvalidOperationException("Sensor was not found. Check Bluetooth and sensor power, then retry.");
+                names.TryGetValue(id, out string reportedName);
+                Enqueue(new ImuTransportMessage(ImuConnectionState.Connecting,
+                    "Sensor detected. Discovering its motion service...", reportedName));
                 deadline = Now + 10;
                 Native.ScanServices(NativeString(id));
                 bool found = false;
@@ -130,6 +132,8 @@ namespace EndlessRollball.Imu
                 }
                 if (stop) return;
                 if (!found) throw new InvalidOperationException("Motion characteristic was not found. Check the firmware and retry.");
+                Enqueue(new ImuTransportMessage(ImuConnectionState.AwaitingData,
+                    "Bluetooth connected. Waiting for live motion data...", reportedName));
                 // Nonblocking subscription reports success through the first notification, not its return value.
                 Native.SubscribeCharacteristic(NativeString(id), NativeString(ServiceId), NativeString(CharacteristicId), false);
                 double firstPacketDeadline = Now + 10;

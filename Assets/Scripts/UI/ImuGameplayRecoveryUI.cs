@@ -32,7 +32,8 @@ public sealed class ImuGameplayRecoveryUI : MonoBehaviour
         }
         recovering = true;
         if (!panel.activeSelf) panel.SetActive(true);
-        reconnect.interactable = session != null && session.ConnectionState != ImuConnectionState.Scanning && session.ConnectionState != ImuConnectionState.Connecting;
+        reconnect.interactable = session != null && session.ConnectionState != ImuConnectionState.Scanning &&
+            session.ConnectionState != ImuConnectionState.Connecting && session.ConnectionState != ImuConnectionState.AwaitingData;
         calibrate.interactable = session != null && session.ConnectionState == ImuConnectionState.Receiving && !session.IsSampling;
         resume.interactable = input.IsInputReady && paused;
         if (Time.unscaledTime < nextTextAt) return;

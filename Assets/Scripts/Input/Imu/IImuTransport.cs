@@ -2,7 +2,7 @@ using System;
 
 namespace EndlessRollball.Imu
 {
-    public enum ImuConnectionState { Disconnected, Scanning, Connecting, Receiving, DataLost, Error }
+    public enum ImuConnectionState { Disconnected, Scanning, Connecting, Receiving, DataLost, Error, AwaitingData }
 
     public readonly struct ImuTransportMessage
     {
@@ -10,10 +10,11 @@ namespace EndlessRollball.Imu
         public readonly double ReceivedAt;
         public readonly ImuConnectionState State;
         public readonly string Detail;
+        public readonly string DeviceName;
         public ImuTransportMessage(byte[] packet, double receivedAt)
-        { Packet = packet; ReceivedAt = receivedAt; State = ImuConnectionState.Receiving; Detail = null; }
-        public ImuTransportMessage(ImuConnectionState state, string detail)
-        { Packet = null; ReceivedAt = 0; State = state; Detail = detail; }
+        { Packet = packet; ReceivedAt = receivedAt; State = ImuConnectionState.Receiving; Detail = null; DeviceName = null; }
+        public ImuTransportMessage(ImuConnectionState state, string detail, string deviceName = null)
+        { Packet = null; ReceivedAt = 0; State = state; Detail = detail; DeviceName = deviceName; }
     }
 
     public interface IImuTransport : IDisposable

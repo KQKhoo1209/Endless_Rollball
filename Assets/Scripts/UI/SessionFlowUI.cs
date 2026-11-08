@@ -45,6 +45,7 @@ namespace EndlessRollball.Track
 
         private void Awake()
         {
+            reducedFeedback = reducedFeedback || GameSessionSettings.UseReducedFeedback;
             CacheAuthoredLabels();
             if (IsConfigured) HidePanels();
         }

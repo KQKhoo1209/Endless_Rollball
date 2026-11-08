@@ -33,10 +33,22 @@ namespace EndlessRollball.Imu
         public bool InputRequested { get; private set; }
         public ImuConnectionState ConnectionState => state;
         public string StatusMessage { get; private set; } = "Connect and calibrate your sensor.";
+        public string ConnectedDeviceName { get; private set; }
         public float CalibrationProgress { get; private set; }
         public int CalibrationRevision { get; private set; }
         public bool IsSampling => sampling;
+        public bool HasFreshSample => state == ImuConnectionState.Receiving && hasSample &&
+            WindowsBleImuTransport.Now - latest.ReceivedAt <= .25;
         public bool HasFreshInput => IsCalibrated && hasSample && WindowsBleImuTransport.Now - latest.ReceivedAt <= .25;
+        public void InvalidateCalibration()
+        {
+            window.Clear();
+            sampling = calibrated = false;
+            neutral = Vector2.zero;
+            CalibrationProgress = 0;
+            CalibrationRevision++;
+            view?.InvalidateNeutralDisplay();
+        }
         private void Awake()
         {
             if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -78,7 +90,7 @@ namespace EndlessRollball.Imu
             transport?.Dispose();
             ResetSession();
             transport = new WindowsBleImuTransport();
-            SetState(ImuConnectionState.Scanning, "Looking for GAIT-WRIST...");
+            SetState(ImuConnectionState.Scanning, "Looking for sensor...");
             transport.Connect();
         }
 
@@ -108,15 +120,22 @@ namespace EndlessRollball.Imu
             rateStart = WindowsBleImuTransport.Now;
             neutral = Vector2.zero;
             CalibrationProgress = 0; CalibrationRevision++;
+            ConnectedDeviceName = null;
         }
 
         private void SetState(ImuConnectionState value, string detail)
         {
             state = value;
             StatusMessage = detail;
-            bool detected = value == ImuConnectionState.Connecting || value == ImuConnectionState.Receiving || value == ImuConnectionState.DataLost;
-            view?.SetConnectionState(detected, detected, value == ImuConnectionState.Receiving);
-            view?.SetTransportStatus(value == ImuConnectionState.DataLost ? "Data lost" : value.ToString(), detail);
+            bool detected = value == ImuConnectionState.Connecting || value == ImuConnectionState.AwaitingData || value == ImuConnectionState.Receiving;
+            bool bluetoothConnected = value == ImuConnectionState.AwaitingData || value == ImuConnectionState.Receiving;
+            if (value == ImuConnectionState.Disconnected || value == ImuConnectionState.Scanning ||
+                value == ImuConnectionState.DataLost || value == ImuConnectionState.Error)
+                ConnectedDeviceName = null;
+            view?.SetConnectionState(detected, bluetoothConnected, value == ImuConnectionState.Receiving);
+            view?.SetDeviceName(ConnectedDeviceName);
+            view?.SetTransportStatus(value == ImuConnectionState.DataLost ? "Data lost" :
+                value == ImuConnectionState.AwaitingData ? "Connected, waiting for data" : value.ToString(), detail);
         }
 
         private void Update()
@@ -129,6 +148,8 @@ namespace EndlessRollball.Imu
                 {
                     if (message.Packet == null)
                     {
+                        if (message.State == ImuConnectionState.Connecting)
+                            ConnectedDeviceName = message.DeviceName;
                         if (message.State == ImuConnectionState.Error)
                         { sampling = calibrated = false; window.Clear(); }
                         SetState(message.State, message.Detail);

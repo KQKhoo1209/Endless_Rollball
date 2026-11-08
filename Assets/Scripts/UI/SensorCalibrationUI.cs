@@ -14,9 +14,15 @@ public sealed class SensorCalibrationUI : MonoBehaviour
     [SerializeField] private bool combinedPanels;
     [SerializeField] private GameObject returnPage;
     [SerializeField] private TMP_Text connectionStatus;
+    [SerializeField] private TMP_Text sensorDevice;
+    private string connectedDeviceName;
     [SerializeField] private TMP_Text poweredStatus;
     [SerializeField] private TMP_Text detectedStatus;
     [SerializeField] private TMP_Text dataStatus;
+    [SerializeField] private UnityEngine.UI.Image[] connectionCheckBoxes;
+    [SerializeField] private GameObject[] connectionCheckTicks;
+    [SerializeField] private GameObject[] connectionCheckWaiting;
+    [SerializeField] private TMP_Text[] connectionCheckStatuses;
     [SerializeField] private TMP_Text connectionMessage;
     [SerializeField] private TMP_Text calibrationConnection;
     [SerializeField] private TMP_Text selectedSettings;
@@ -27,6 +33,18 @@ public sealed class SensorCalibrationUI : MonoBehaviour
     [SerializeField] private UnityEngine.UI.Button calibrationRetry;
     [SerializeField] private UnityEngine.UI.Button calibrationContinue;
     [SerializeField] private TMP_Text sensorDiagnostics;
+    [SerializeField] private PreparationFlowController preparationFlow;
+    [SerializeField] private TMP_Text preparationTitle;
+    private bool connectionOnly;
+
+    public void SetPreparationMode(bool connectOnly)
+    {
+        connectionOnly = connectOnly;
+        SetText(preparationTitle, connectOnly ? "Connect Sensor" : "Neutral Calibration");
+        Refresh();
+    }
+
+    public void InvalidateNeutralDisplay() { ResetCalibration(); Refresh(); }
 
     [Header("Live orientation preview")]
     [SerializeField] private SensorCalibrationVisual movementVisual;
@@ -74,6 +92,21 @@ public sealed class SensorCalibrationUI : MonoBehaviour
     }
 
     public void SetDiagnostics(string text) => SetText(sensorDiagnostics, text);
+
+    public void SetDeviceName(string deviceName)
+    {
+        connectedDeviceName = string.IsNullOrWhiteSpace(deviceName) ? null : deviceName.Trim();
+        RefreshDeviceName();
+    }
+
+    private void RefreshDeviceName()
+    {
+        if (sensorDevice == null) return;
+        // A Bluetooth name is device-provided text, not TMP formatting.
+        sensorDevice.richText = false;
+        sensorDevice.text = "Sensor Device: " +
+            (Connected && !string.IsNullOrEmpty(connectedDeviceName) ? connectedDeviceName : "---");
+    }
 
     public void SetNeutralTilt(Vector2 neutral)
     {
@@ -181,6 +214,7 @@ public sealed class SensorCalibrationUI : MonoBehaviour
 
     public void Open()
     {
+        if (preparationFlow != null) { preparationFlow.Begin(); return; }
         if (returnPage != null) returnPage.SetActive(false);
         gameObject.SetActive(true);
         ShowConnection();
@@ -188,14 +222,15 @@ public sealed class SensorCalibrationUI : MonoBehaviour
 
     public void Close()
     {
+        if (preparationFlow != null) { preparationFlow.BackFromSensor(this); return; }
         gameObject.SetActive(false);
         if (returnPage != null) returnPage.SetActive(true);
     }
 
     public void ShowConnection()
     {
-        connectPage.SetActive(true);
-        calibrationPage.SetActive(combinedPanels);
+        if (connectPage != null) connectPage.SetActive(true);
+        if (calibrationPage != null) calibrationPage.SetActive(combinedPanels);
         Refresh();
     }
 
@@ -203,22 +238,23 @@ public sealed class SensorCalibrationUI : MonoBehaviour
     // This does not mark pain/stress, painting, connection or calibration complete.
     public void ShowCalibration()
     {
-        connectPage.SetActive(combinedPanels);
-        calibrationPage.SetActive(true);
+        if (connectPage != null) connectPage.SetActive(combinedPanels);
+        if (calibrationPage != null) calibrationPage.SetActive(true);
         Refresh();
     }
 
     public void RetryConnection()
     {
         transportState = "Scanning";
-        transportMessage = "Looking for GAIT-WRIST. Keep your controller powered on.";
+        transportMessage = "Looking for sensor. Keep your controller powered on.";
         SetConnectionState(false, false, false);
-        SetText(connectionMessage, "Looking for GAIT-WRIST. Keep your controller powered on.");
+        SetText(connectionMessage, "Looking for sensor. Keep your controller powered on.");
         connectionRequested.Invoke();
     }
 
     public void RetryCalibration()
     {
+        if (preparationFlow != null && connectionOnly) return;
         if (!Connected || (movementVisual != null && !hasOrientation)) return;
         ResetCalibration();
         if (hasOrientation) previewReference = latestOrientation;
@@ -232,16 +268,28 @@ public sealed class SensorCalibrationUI : MonoBehaviour
 
     public void ContinueToPreparation()
     {
+        if (preparationFlow != null) { if (Connected) preparationFlow.ShowRatings(); return; }
         if (Connected) preparationRequested.Invoke();
     }
 
     public void ContinueWhenReady()
     {
+        if (preparationFlow != null)
+        {
+            if (connectionOnly) { if (Connected) preparationFlow.ShowRatings(); }
+            else if (Connected && calibrated) preparationFlow.ShowGuide();
+            return;
+        }
         if (Connected && calibrated) readyRequested.Invoke();
     }
 
     private void OnEnable()
     {
+        if (preparationFlow != null)
+        {
+            connectionOnly = preparationFlow.IsConnectionView(this);
+            SetText(preparationTitle, connectionOnly ? "Connect Sensor" : "Neutral Calibration");
+        }
         if (!handCached && handPreview != null)
         {
             handHome = handPreview.anchoredPosition;
@@ -290,6 +338,7 @@ public sealed class SensorCalibrationUI : MonoBehaviour
 
     private void Refresh()
     {
+        RefreshDeviceName();
         if (!Connected)
         {
             hasOrientation = false;
@@ -298,10 +347,16 @@ public sealed class SensorCalibrationUI : MonoBehaviour
             targetRotation = 0f;
         }
         SetText(connectionStatus, "Connection Status: " + (transportState ?? (Connected ? "Connected" : detected ? "Waiting for sensor data" : "Not connected")));
-        SetText(poweredStatus, (powered ? "[READY]  " : "[WAIT]  ") + "Controller detected (power inferred)");
-        SetText(detectedStatus, (detected ? "[READY]  " : "[WAIT]  ") + "Bluetooth detected");
-        SetText(dataStatus, (receiving ? "[READY]  " : "[WAIT]  ") + "Live data received");
-        SetText(connectionMessage, !string.IsNullOrEmpty(transportMessage) ? transportMessage : Connected
+        bool visualChecks = connectionCheckBoxes != null && connectionCheckBoxes.Length == 3;
+        SetText(poweredStatus, (visualChecks ? "" : powered ? "[READY]  " : "[WAIT]  ") + "Sensor detected");
+        SetText(detectedStatus, (visualChecks ? "" : detected ? "[READY]  " : "[WAIT]  ") + "Bluetooth connected");
+        SetText(dataStatus, (visualChecks ? "" : receiving ? "[READY]  " : "[WAIT]  ") + "Live data received");
+        SetConnectionCheck(0, powered);
+        SetConnectionCheck(1, detected);
+        SetConnectionCheck(2, receiving);
+        SetText(connectionMessage, preparationFlow != null && connectionOnly && Connected
+            ? "All three checks are complete. Continue to Pain & Stress."
+            : !string.IsNullOrEmpty(transportMessage) ? transportMessage : Connected
             ? (combinedPanels ? "Sensor connected. Calibrate after preparation." : "Controller connected. Continue to the pain and stress check.")
             : "Power on your controller and select Retry Connection.");
         SetText(calibrationConnection, "BLE connection: " + (Connected ? "Connected" : "Not connected"));
@@ -313,18 +368,32 @@ public sealed class SensorCalibrationUI : MonoBehaviour
         if (progressFill != null) progressFill.fillAmount = progress;
         SetText(progressLabel, movementVisual != null ? "Sensor readiness" : Mathf.RoundToInt(progress * 100f) + "%  |  Sensor readiness");
         SetText(calibrationMessage, !Connected ? "Connect your sensor to begin."
+            : preparationFlow != null && connectionOnly ? "Final neutral calibration follows painting or skipping."
             : movementVisual != null && !hasOrientation ? "Waiting for sensor input."
             : calibrated ? "Neutral position saved."
             : hasOrientation && !sampleStable ? "Movement detected. Settle your hand."
             : sampling ? "Hold your hand comfortably still."
             : "Ready to calibrate. Rest your hand, then select Calibrate.");
         if (connectContinue != null && !combinedPanels) connectContinue.interactable = Connected;
-        if (calibrationRetry != null) calibrationRetry.interactable = Connected && (movementVisual == null || hasOrientation);
-        if (calibrationContinue != null) calibrationContinue.interactable = Connected && calibrated;
+        if (calibrationRetry != null) calibrationRetry.interactable = Connected && (movementVisual == null || hasOrientation) && !connectionOnly;
+        if (calibrationContinue != null) calibrationContinue.interactable = Connected && (connectionOnly || calibrated);
     }
 
     private static void SetText(TMP_Text target, string value)
     {
         if (target != null) target.text = value;
+    }
+
+    private void SetConnectionCheck(int index, bool done)
+    {
+        if (connectionCheckBoxes == null || index >= connectionCheckBoxes.Length) return;
+        if (connectionCheckBoxes[index] != null)
+            connectionCheckBoxes[index].color = done ? new Color(.22f, .65f, .38f) : new Color(.78f, .80f, .76f);
+        if (connectionCheckTicks != null && index < connectionCheckTicks.Length && connectionCheckTicks[index] != null)
+            connectionCheckTicks[index].SetActive(done);
+        if (connectionCheckWaiting != null && index < connectionCheckWaiting.Length && connectionCheckWaiting[index] != null)
+            connectionCheckWaiting[index].SetActive(!done);
+        if (connectionCheckStatuses != null && index < connectionCheckStatuses.Length)
+            SetText(connectionCheckStatuses[index], done ? "Done" : "Waiting");
     }
 }

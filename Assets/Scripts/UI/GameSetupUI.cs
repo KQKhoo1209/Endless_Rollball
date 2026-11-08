@@ -14,6 +14,7 @@ public sealed class GameSetupUI : MonoBehaviour
     private Button modeContinueButton;
     [SerializeField]
     private Button difficultyContinueButton;
+    [SerializeField] private PreparationFlowController preparationFlow;
     private bool isLoading;
     private void Awake()
     {
@@ -81,7 +82,12 @@ public sealed class GameSetupUI : MonoBehaviour
 
         if (GameSessionSettings.SelectedMode == GameMode.Endless)
         {
-            StartGame();
+            if (preparationFlow != null)
+            {
+                gameModePage.SetActive(false);
+                preparationFlow.Begin();
+            }
+            else StartGame();
             return;
         }
 
