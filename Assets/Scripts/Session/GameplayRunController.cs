@@ -364,6 +364,17 @@ namespace EndlessRollball.Track
                 follow.SnapToTarget();
         }
 
+        internal void PrepareCloudStreetReturn(float landingZ)
+        {
+            if (State != SessionFlowState.SpecialEvent) return;
+
+            float clearThroughZ = landingZ + Mathf.Max(0f, postCloudRestDistance);
+            // Exclude skipped road tasks and remove nearby payloads before normal
+            // collision handling resumes. Keep the supporting road intact.
+            taskTracker.PrepareRecoveryArrival(landingZ, clearThroughZ);
+            trackGenerator.ProtectRecoveryArrival(landingZ, clearThroughZ);
+        }
+
         internal void EndSpecialEvent(double playedSeconds)
         {
             if (State != SessionFlowState.SpecialEvent) return;

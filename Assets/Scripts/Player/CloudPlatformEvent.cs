@@ -63,6 +63,7 @@ namespace EndlessRollball
         private bool physicalRecoveryArmed;
         private float firstCloudRecoveryTime;
         private bool descendingToStreet;
+        private Collider pendingStreetSupport;
         private float physicalLaunchTime;
 
         // Called from sceneLoaded, before Start prepares the course.
@@ -450,6 +451,7 @@ namespace EndlessRollball
             runController.GetComponent<GameSequenceCoordinator>()?.Notify(GameSequenceCoordinator.SequencePhase.Event);
             physicalFinishRequested = false;
             descendingToStreet = false;
+            pendingStreetSupport = null;
 
             EndlessRollball.Infrastructure.RuntimeLog.Info(
                 $"Cloud launch ready. First landing in approximately " +
@@ -608,11 +610,24 @@ namespace EndlessRollball
 
         private void HandleStreetLanding(Collider support)
         {
+            if (!descendingToStreet || runController == null ||
+                !runController.Generator.IsCloudStreetFloor(support))
+                return;
+
+            // Stay in SpecialEvent for every callback in this physics batch.
+            // Resuming here could classify a simultaneous contact as a road hit.
+            pendingStreetSupport = support;
+        }
+
+        private void CompleteStreetLanding(Collider support)
+        {
             if (!descendingToStreet ||
                 !runController.Generator.IsCloudStreetFloor(support))
                 return;
 
             descendingToStreet = false;
+            pendingStreetSupport = null;
+            runController.PrepareCloudStreetReturn(gameplaySphere.transform.position.z);
 
             gameplaySphere.GroundContact -= HandleStreetLanding;
             gameplaySphere.SetCloudDescent(false);
@@ -645,6 +660,10 @@ namespace EndlessRollball
 
         private void LateUpdate()
         {
+            if (pendingStreetSupport != null && runController != null &&
+                runController.State == SessionFlowState.SpecialEvent)
+                CompleteStreetLanding(pendingStreetSupport);
+
             if (simulation == null || eventCamera == null) return;
             Vector3 anchor = origin + Vector3.forward * simulation.Z;
             eventCamera.transform.position = anchor + cameraOffset;
@@ -653,6 +672,7 @@ namespace EndlessRollball
 
         private void OnDisable()
         {
+            pendingStreetSupport = null;
             if (simulation != null && !soundManager.IsPaused && !finished) TogglePause();
         }
 
