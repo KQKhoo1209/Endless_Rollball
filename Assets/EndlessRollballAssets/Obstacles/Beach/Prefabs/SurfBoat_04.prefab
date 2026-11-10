@@ -49,6 +49,10 @@ MonoBehaviour:
   movement: 1
   movementSpeed: 2
   approachLeadSeconds: 1.5
+  hornEnabled: 1
+  hornDetectionDistance: 18
+  hornCheckInterval: 0.02
+  hornCooldown: 6
 --- !u!54 &2664115584546384938
 Rigidbody:
   m_ObjectHideFlags: 0
