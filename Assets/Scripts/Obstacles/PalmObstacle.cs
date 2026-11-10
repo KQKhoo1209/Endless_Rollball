@@ -33,6 +33,7 @@ namespace EndlessRollball.Track
         {
             if (!running || touched) return;
             touched = true;
+            BeachGameplayAudio.Instance?.PlayLeaves();
             EnsureMeshes();
             impact = point;
             velocity = Vector3.ClampMagnitude(direction, 1f) * 4.2f;

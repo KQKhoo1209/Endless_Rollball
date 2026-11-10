@@ -19,6 +19,12 @@ namespace EndlessRollball
                  "would reach the boat's starting position.")]
         [SerializeField, Min(.1f)] private float approachLeadSeconds = 4f;
 
+        [Header("Boat horn")]
+        [SerializeField] private bool hornEnabled;
+        [SerializeField, Min(.1f)] private float hornDetectionDistance = 18f;
+        [SerializeField, Min(.02f)] private float hornCheckInterval = .02f;
+        [SerializeField, Min(.1f)] private float hornCooldown = 6f;
+
         [Header("Moving water effects")]
         [SerializeField] private bool movingWaterEffects = true;
         private WaterMovementWake wake;
@@ -33,6 +39,12 @@ namespace EndlessRollball
         private float activationDistance;
         private bool prepared;
         private bool moving;
+        private float nextHornAt;
+        private float nextHornCheckAt;
+        private Collider surferCollider;
+        internal bool CrossesChannel => movement==MovementType.CrossChannel;
+        internal float EncounterTimeOffset(float surferSpeed) => movement==MovementType.TowardsPlayer
+            ? movementSpeed*approachLeadSeconds/Mathf.Max(.1f,surferSpeed+movementSpeed) : 0f;
 
         internal void PrepareWake()
         {
@@ -50,6 +62,7 @@ namespace EndlessRollball
             body = GetComponent<Rigidbody>();
             surfer = surferTransform;
             surfController = surfer != null ? surfer.GetComponent<WhaleSurfController>() : null;
+            surferCollider = surfer != null ? surfer.GetComponent<Collider>() : null;
 
             startPosition = transform.position;
             waterSurfaceY = float.IsNaN(surfaceY) ? startPosition.y : surfaceY;
@@ -61,6 +74,8 @@ namespace EndlessRollball
                 Mathf.Max(.1f, surferSpeed) * approachLeadSeconds;
 
             moving = false;
+            nextHornAt = 0f;
+            nextHornCheckAt = 0f;
             prepared = false;
             PrepareWake();
             wake?.ResetAt(startPosition, waterSurfaceY, surfaceMaterial);
@@ -92,6 +107,7 @@ namespace EndlessRollball
 
         private void FixedUpdate()
         {
+            CheckHorn();
             if (!prepared || surfer == null || (surfController != null && surfController.IsRecovering))
             {
                 wake?.Stop();
@@ -155,6 +171,27 @@ namespace EndlessRollball
                 found = true;
             }
             return found;
+        }
+
+        private void CheckHorn()
+        {
+            var audio = BeachGameplayAudio.Instance;
+            if (!hornEnabled || movement != MovementType.TowardsPlayer || !prepared ||
+                surfer == null || surferCollider == null || surfController == null ||
+                !surfController.IsRidingWater || audio == null || !audio.SurfingAudioActive ||
+                Time.time < nextHornAt || Time.time < nextHornCheckAt) return;
+            nextHornCheckAt = Time.time + hornCheckInterval;
+            if (!TryGetContactBounds(out Bounds bounds)) return;
+
+            // TowardsPlayer boats travel along world -Z. Cast from outside the bow
+            // at the rider hull's height; the active surfing hull is a trigger.
+            Vector3 origin = bounds.center;
+            origin.z = bounds.min.z - .05f;
+            origin.y = surferCollider.bounds.center.y;
+            if (!Physics.Raycast(origin, Vector3.back, out RaycastHit hit,
+                hornDetectionDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide)) return;
+            if (hit.transform != surfer && !hit.transform.IsChildOf(surfer)) return;
+            if (audio.TryBoatHorn()) nextHornAt = Time.time + hornCooldown;
         }
 
         private void OnDisable()

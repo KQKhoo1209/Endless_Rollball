@@ -24,6 +24,8 @@ namespace EndlessRollball.Track
         [SerializeField, Min(.2f)] private float pillarFallSeconds=1.4f;
         [SerializeField] private ParticleSystem impactDust;
         private bool impactPlayed;
+        private DungeonObstacleAudio obstacleAudio;
+        private bool motionAudioPlayed;
         private BallMovement player;
         private bool running, started;
         private float elapsed, triggerZ;
@@ -43,6 +45,9 @@ namespace EndlessRollball.Track
         public void Prepare(BallMovement ball, float maximumSpeed, bool paused)
         {
             player=ball; elapsed=0; started=false;impactPlayed=false;
+            motionAudioPlayed=false;
+            if(obstacleAudio==null) obstacleAudio=GetComponent<DungeonObstacleAudio>();
+            obstacleAudio?.ResetAudio();
             body.position=transform.TransformPoint(initialPosition);
             body.rotation=transform.rotation;
             if(fallsOnApproach)
@@ -62,6 +67,7 @@ namespace EndlessRollball.Track
         public void SetRunning(bool value)
         {
             running=value;
+            obstacleAudio?.SetRunning(value);
             foreach(var p in CachedParticles)
                 if(value) { if(p.isPaused) p.Play(); } else if(p.isPlaying) p.Pause();
         }
@@ -71,11 +77,17 @@ namespace EndlessRollball.Track
             if(!started && player.transform.position.z>=triggerZ)
             {
                 started=true; if(warning!=null) warning.SetActive(true);
+                if(kind==TrapKind.Rubble) obstacleAudio?.BeginWarning();
                 foreach(var p in CachedParticles)
                     if(impactDust==null || !p.transform.IsChildOf(impactDust.transform)) p.Play();
             }
             if(!started) return;
             elapsed+=Time.fixedDeltaTime;
+            if(elapsed>=2f && !motionAudioPlayed)
+            {
+                motionAudioPlayed=true;
+                if(fallsOnApproach) obstacleAudio?.BeginMotion();
+            }
             float progress=Mathf.Clamp01((elapsed-2f)/(fallsOnApproach?pillarFallSeconds:.8f));
             if(fallsOnApproach)
             {
@@ -101,6 +113,8 @@ namespace EndlessRollball.Track
                 (fallsOnApproach || kind == TrapKind.Rubble))
             {
                 impactPlayed = true;
+                // Rubble changes from falling debris to a separate road impact.
+                if(kind==TrapKind.Rubble) obstacleAudio?.Land();
 
                 if (impactDust != null)
                     impactDust.Play(true);
@@ -108,6 +122,7 @@ namespace EndlessRollball.Track
         }
         private void OnDisable()
         { running=false; started=false; elapsed=0; player=null;
+          obstacleAudio?.StopAudio();
           foreach(var p in CachedParticles) p.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear); }
     }
 }

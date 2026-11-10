@@ -29,6 +29,8 @@ namespace EndlessRollball.Track
         [SerializeField] private TMP_Text overallText;
         [SerializeField] private TMP_Text scoreFormulaText;
         [SerializeField] private TMP_Text coinsText;
+        [SerializeField] private EndlessRollball.Avatars.SessionResultAvatarPresenter avatarPresenter;
+        private SessionEndInfo displayedResult;
         [Tooltip("Presentation only. Task counting/calculation still run. Later preparation UI can call SetReducedFeedback.")]
         [SerializeField] private bool reducedFeedback;
 
@@ -45,7 +47,8 @@ namespace EndlessRollball.Track
 
         private void Awake()
         {
-            reducedFeedback = reducedFeedback || GameSessionSettings.UseReducedFeedback;
+            reducedFeedback = reducedFeedback || GameSessionSettings.UseReducedFeedback ||
+                GameSessionSettings.PainRating.GetValueOrDefault() >= 7 || GameSessionSettings.StressRating.GetValueOrDefault() >= 7;
             CacheAuthoredLabels();
             if (IsConfigured) HidePanels();
         }
@@ -93,6 +96,7 @@ namespace EndlessRollball.Track
 
         public void ShowResult(SessionEndInfo info)
         {
+            displayedResult = info;
             pausePanel.SetActive(false);
             pauseButton.SetActive(false);
             if (gameplayHUD != null) gameplayHUD.SetActive(false);
@@ -108,17 +112,25 @@ namespace EndlessRollball.Track
                     : score.JumpAndLandingPercent.HasValue
                         ? $"= ({Number(score.SafeNavigationPercent.Value)} × 60%) + ({Number(score.JumpAndLandingPercent.Value)} × 40%)"
                         : "No required jumps: Overall Score = Safe Navigation"));
-            // A reward candidate is not a credited balance or a successful save.
-            SetData(coinsText, score.OverallPercent.HasValue
-                ? score.PotentialAvatarCoins.ToString(CultureInfo.InvariantCulture) + " (not yet credited)" : "—");
+            RefreshAvatarCoins();
             resultPanel.SetActive(true);
             ApplyFeedbackVisibility();
+            if (avatarPresenter != null) avatarPresenter.Show(info, reducedFeedback);
+        }
+
+        public void RefreshAvatarCoins()
+        {
+            if (displayedResult == null) return;
+            SetData(coinsText, displayedResult.AvatarProgressSaved
+                ? displayedResult.AvatarCoinsCredited.ToString(CultureInfo.InvariantCulture)
+                : "Not saved - retry below");
         }
 
         public void SetReducedFeedback(bool value)
         {
-            reducedFeedback = value;
+            reducedFeedback = value || GameSessionSettings.PainRating.GetValueOrDefault() >= 7 || GameSessionSettings.StressRating.GetValueOrDefault() >= 7;
             ApplyFeedbackVisibility();
+            if (displayedResult != null && resultPanel.activeSelf && avatarPresenter != null) avatarPresenter.Show(displayedResult, reducedFeedback);
         }
 
         public void RefreshDuration()

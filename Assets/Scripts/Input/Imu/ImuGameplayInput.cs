@@ -35,7 +35,8 @@ namespace EndlessRollball.Imu
         private double previousSample, raisedSince = -1, neutralSince = -1, lastJump = -100, queuedUntil;
         private bool jumpArmed, jumpQueued;
         private int revision = -1;
-        public bool UsesImu => !keyboardOnly && session != null && session.InputRequested;
+        public bool UsesImu => GameSessionSettings.SelectedInputMode == GameInputMode.Imu &&
+            !keyboardOnly && session != null && session.InputRequested;
         public bool IsInputReady => !UsesImu || session.HasFreshInput;
         public ImuControlContext Context => context;
 

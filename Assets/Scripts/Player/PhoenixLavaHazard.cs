@@ -23,11 +23,13 @@ namespace EndlessRollball
         private bool prepared;
         private bool eruptionPlaying;
         private bool ballActive;
+        private DungeonObstacleAudio obstacleAudio;
 
         public void Prepare()
         {
             if (prepared) return;
             body = GetComponent<Rigidbody>();
+            obstacleAudio = GetComponent<DungeonObstacleAudio>();
             if (kind != HazardKind.Pillar)
                 surfaceEffect = LavaSurfaceEffect.Create(transform);
             if (warningVisual != null)
@@ -54,6 +56,7 @@ namespace EndlessRollball
             float channelCentre, float crossingDirection)
         {
             Prepare();
+            obstacleAudio?.ResetAudio();
             start = worldStart;
             encounter = encounterTime;
             height = flightHeight;
@@ -91,6 +94,7 @@ namespace EndlessRollball
                     new Vector3(centreX - direction * 4.5f, surfaceY, start.z);
                 emergence.y = surfaceY + .08f;
                 surfaceEffect?.BeginPrepare(emergence);
+                obstacleAudio?.BeginWarning();
                 preparationStarted = true;
             }
             if (kind == HazardKind.Eruption)
@@ -109,6 +113,7 @@ namespace EndlessRollball
             body.MovePosition(position);
             if (active && !ballActive)
             {
+                obstacleAudio?.BeginMotion();
                 surfaceEffect?.EndPrepare();
                 if (trail != null) trail.Play();
             }
@@ -146,6 +151,7 @@ namespace EndlessRollball
             }
             if (active && !eruptionPlaying)
             {
+                obstacleAudio?.BeginMotion();
                 surfaceEffect?.EndPrepare();
                 if (sparks != null) sparks.Play();
             }
@@ -160,6 +166,7 @@ namespace EndlessRollball
 
         private void PlaySplash(Vector3 position)
         {
+            obstacleAudio?.Land();
             position.y = surfaceY + .08f;
             surfaceEffect?.Impact(position);
             if (splash == null) return;
@@ -178,6 +185,7 @@ namespace EndlessRollball
 
         private void OnDisable()
         {
+            obstacleAudio?.StopAudio();
             surfaceEffect?.Clear();
             if (hitCollider != null) hitCollider.enabled = false;
             if (warningVisual != null) warningVisual.gameObject.SetActive(false);

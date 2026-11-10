@@ -45,6 +45,7 @@ namespace EndlessRollball.Track
         public IReadOnlyList<string> GeneratedSequence => generatedSequence;
         public int CurrentSeed => currentRun.Seed;
         public DifficultyMode CurrentDifficulty => currentRun.Mode;
+        internal float EncounterProgress01 => difficultyManager!=null?difficultyManager.CurrentSnapshot.Progress01:0f;
         public string TrackIdentifier => effectiveTrackIdentifier ?? currentRun.TrackIdentifier;
 
         private string effectiveTrackIdentifier;
@@ -138,7 +139,9 @@ namespace EndlessRollball.Track
         public void ResetRun()
         {
             cloudRoadContinuation = false;
+            cloudContinuationRoads.Clear();
             ResetBeachSurfReservation();
+            protectedArrivalStart=protectedArrivalEnd=float.NegativeInfinity;
             ResetPhoenixLava();
 
             if (!initialized)
@@ -264,7 +267,7 @@ namespace EndlessRollball.Track
                     yield break;
                 }
 
-                effectiveTrackIdentifier += "-encounters-v20-navigation-balance-6m";
+                effectiveTrackIdentifier += "-encounters-v21-cloud-return-carrier-variety-6m";
             }
 
             if (taskTracker != null)
@@ -531,6 +534,7 @@ namespace EndlessRollball.Track
             environmentManager?.RecordRouteEntry(spawnedCount, nextSpawnZ, physicalExitZ);
             instance.transform.SetPositionAndRotation(new Vector3(0f, 0f, rootZ), Quaternion.identity);
             instance.Activate(snapshot);
+            if(cloudRoadContinuation) cloudContinuationRoads.Add(instance);
             if (IsPhoenixLava(spawnedCount))
                 ConfigureLavaSurface(instance);
             if (IsBeachSurfSea(spawnedCount))
@@ -547,6 +551,11 @@ namespace EndlessRollball.Track
             if (obstacleManager != null)
             {
                 obstacleManager.AttachSegment(instance, encounter, environmentManager, this);
+                if(player!=null && player.position.z<=protectedArrivalEnd)
+                {
+                    obstacleManager.ProtectRecoveryArrival(protectedArrivalStart,protectedArrivalEnd,false);
+                    taskTracker?.PrepareRecoveryArrival(protectedArrivalStart,protectedArrivalEnd,false);
+                }
             }
 
             float endZ = physicalExitZ;
@@ -623,6 +632,7 @@ namespace EndlessRollball.Track
         internal void EndCloudRoadContinuation()
         {
             cloudRoadContinuation = false;
+            PopulateRoadAfterCloud();
         }
 
         private void RecyclePassedSegments()
@@ -659,6 +669,7 @@ namespace EndlessRollball.Track
 
         private void Return(ActiveSegment active)
         {
+            cloudContinuationRoads.Remove(active.Instance);
             streetPadSpawner?.ReleaseRoad(active.Instance);
             taskTracker?.ReleaseTrack(active.Instance);
             if (obstacleManager != null)
@@ -676,8 +687,16 @@ namespace EndlessRollball.Track
         }
 
         internal bool UsesSharedObstaclePacing => obstacleManager != null && obstacleManager.UsesSharedObstaclePacing;
-        internal void ProtectRecoveryArrival(float destinationZ,float clearThroughZ) =>
+        private float protectedArrivalStart=float.NegativeInfinity,protectedArrivalEnd=float.NegativeInfinity;
+        internal void ProtectRecoveryArrival(float destinationZ,float clearThroughZ)
+        {
+            // Retain protection for future attachments, not just currently active hazards.
+            if(destinationZ>protectedArrivalEnd)
+                protectedArrivalStart=destinationZ;
+            else protectedArrivalStart=Mathf.Min(protectedArrivalStart,destinationZ);
+            protectedArrivalEnd=Mathf.Max(destinationZ,Mathf.Max(protectedArrivalEnd,clearThroughZ));
             obstacleManager?.ProtectRecoveryArrival(destinationZ,clearThroughZ);
+        }
 
         private void ReturnAllSegments()
         {

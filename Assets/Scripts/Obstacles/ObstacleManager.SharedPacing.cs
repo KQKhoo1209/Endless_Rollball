@@ -227,6 +227,10 @@ namespace EndlessRollball.Track
         }
         private SharedChoice BuildSharedChoice(SharedCandidate candidate,CityPlanningRequest r,float cursor,System.Random random,int side,int rowSide=0)
         {
+            // Existing visible road can receive payloads after Cloud, but its
+            // supporting geometry and roadside scenery must not be replaced.
+            if(r.PayloadsOnly && candidate.Kind!=SharedKind.Fixed && candidate.Kind!=SharedKind.Trap &&
+                candidate.Kind!=SharedKind.Combined && candidate.Kind!=SharedKind.Stone) return null;
             float maxSpeed=r.Difficulty.ForwardSpeed+r.Difficulty.SpeedAdjustmentRange;
             var safety=new DifficultySnapshot(r.Difficulty.Mode,maxSpeed,0,1,r.Difficulty.MovingObstacleSpeed,
                 r.Difficulty.Progress01,r.Difficulty.RoadWidth,r.Difficulty.RecoverySeconds,r.Difficulty.ConsecutiveLimit,r.Difficulty.CombinationChance);
@@ -583,10 +587,20 @@ namespace EndlessRollball.Track
             foreach(var entry in attachedEncounters)
                 foreach(long identity in entry.Value) Debug.Log($"Encounter ownership: segment={entry.Key.name}, id={identity}",entry.Key);
         }
-        internal void ProtectRecoveryArrival(float destinationZ,float clearThroughZ)
+        internal void ProtectRecoveryArrival(float destinationZ,float clearThroughZ,bool synchronizeTraffic=true)
         {
             // Recovery is an explicit event, not padding added after every successful pass.
             // Existing support stays intact. Cancelled hazards are released by their normal owner.
+            if(synchronizeTraffic)
+            {
+                foreach(var entry in activeCityVehicles)
+                    entry.Value.SynchronizePlayerTeleport(destinationZ);
+                foreach(var entry in activeJunctions)
+                    entry.Value.Controller.SynchronizePlayerTeleport(destinationZ);
+                // One sync per arrival: the bounds checks below must see the
+                // teleported bodies immediately, before the next physics step.
+                Physics.SyncTransforms();
+            }
             foreach(var entry in active)
                 foreach(var pair in entry.Value)
                 {
@@ -603,6 +617,16 @@ namespace EndlessRollball.Track
                     if(shape!=null && shape.bounds.max.z>=destinationZ-Radius && shape.bounds.min.z<=clearThroughZ) {overlaps=true;break;}
                 if(overlaps && entry.Value.Vehicle!=null) entry.Value.Vehicle.SetActive(false);
             }
+            foreach(var entry in activeJunctions)
+            {
+                bool overlaps=entry.Key.EntryAnchor.position.z<=clearThroughZ &&
+                    entry.Key.ExitAnchor.position.z>=destinationZ-Radius;
+                foreach(var shape in entry.Value.Hazards)
+                    if(shape!=null && shape.enabled && shape.bounds.max.z>=destinationZ-Radius && shape.bounds.min.z<=clearThroughZ)
+                    {overlaps=true;break;}
+                if(overlaps) entry.Value.Controller.SuppressForRecovery();
+            }
+            SuppressRoadworksSolidContacts(destinationZ-Radius,clearThroughZ);
             nextSharedDecision=Mathf.Max(nextSharedDecision,clearThroughZ);
         }
         private SegmentPlan PlanSharedSegment(CityPlanningRequest request)
@@ -761,5 +785,20 @@ namespace EndlessRollball.Track
                 special.RoadworksWindow,special.Junction,special.JunctionWindow,special.TrafficSeed,
                 special.CityVehicle,special.VehiclePrefab,special.VehiclePosition,special.VehicleWindow,special.BeachBarrier);
         }
+
+        internal void ResumeSharedRoadAfterCloud(float clearThroughZ)
+        {
+            sharedLookahead.Clear();
+            cityLookahead.Clear();
+            sharedSpecialCache.Clear();
+            sharedReservations.Clear();
+            planner.Reset();
+            nextSharedDecision=sharedClear=sharedLastJumpEnd=clearThroughZ;
+            sharedLastDecision=float.NegativeInfinity;
+            sharedExit=ballMovement.transform.position.x;
+            sharedSinceVarietyBreath=0;
+        }
+
+        internal SegmentPlan PlanCloudReturnPayloads(CityPlanningRequest request) => PlanSharedSegment(request);
     }
 }

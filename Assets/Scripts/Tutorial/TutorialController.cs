@@ -20,6 +20,15 @@ namespace EndlessRollball.Tutorial
         [SerializeField] private RuntimeAnimatorController demonstrationController;
         [SerializeField] private Sprite guidanceHandSprite;
         [SerializeField] private GameObject gameplayPauseUIPrefab;
+        [Header("Practice audio")]
+        [SerializeField] private AudioSource rollingAudio;
+        [SerializeField] private AudioSource feedbackAudio;
+        [SerializeField] private AudioClip rollingClip;
+        [SerializeField] private AudioClip landingClip;
+        [SerializeField] private AudioClip taskSuccessClip;
+        private float audioGain;
+        private bool touchedGround;
+        private float airborneSince = -1f;
         private TutorialView view;
         private Step step;
         private bool practising, paused, busy, acceptedJump, airborne, landed, obstacleHit;
@@ -33,6 +42,7 @@ namespace EndlessRollball.Tutorial
         {
             Time.timeScale = 1;
             body = ball.GetComponent<Rigidbody>();
+            PrepareAudio();
             ball.SetRoadCorridor(new RoadCorridor(6f));
             ball.JumpAccepted += OnJump;
             ball.AirborneObserved += OnAirborne;
@@ -65,6 +75,9 @@ namespace EndlessRollball.Tutorial
             step = next;
             practising = false;
             acceptedJump = airborne = landed = obstacleHit = false;
+            StopRollingAudio();
+            touchedGround = false;
+            airborneSince = -1f;
             centreSeconds = 0;
             combinedTarget = 0;
             input.SetAllowed(false, false);
@@ -109,7 +122,7 @@ namespace EndlessRollball.Tutorial
                     bodyText = "Reach LEFT, then RIGHT, jump over the orange barrier, and reach FINISH.\nA / ← left     D / → right     ↑ jump. Take as many tries as you need."; break;
             }
             if (retry != null) bodyText = retry + "\n" + bodyText;
-            if (EndlessRollball.Imu.ImuRuntimeSession.Instance != null && EndlessRollball.Imu.ImuRuntimeSession.Instance.InputRequested)
+            if (GameSessionSettings.SelectedInputMode == GameInputMode.Imu && EndlessRollball.Imu.ImuRuntimeSession.Instance != null && EndlessRollball.Imu.ImuRuntimeSession.Instance.InputRequested)
             {
                 title = step == Step.Welcome ? "Welcome to Endless Rollball" :
                     step == Step.Left ? "Move left" : step == Step.Right ? "Move right" :
@@ -159,7 +172,7 @@ namespace EndlessRollball.Tutorial
                 combinedTarget == 0 ? "First: reach the LEFT target. A / ←" :
                 combinedTarget == 1 ? "Good! Next: reach the RIGHT target. D / →" :
                 "Both targets reached! Jump over the orange barrier with ↑, then reach FINISH.";
-            if (EndlessRollball.Imu.ImuRuntimeSession.Instance != null && EndlessRollball.Imu.ImuRuntimeSession.Instance.InputRequested)
+            if (GameSessionSettings.SelectedInputMode == GameInputMode.Imu && EndlessRollball.Imu.ImuRuntimeSession.Instance != null && EndlessRollball.Imu.ImuRuntimeSession.Instance.InputRequested)
                 text = step == Step.Left ? "Roll LEFT and hold the tilt to stay on the highlighted target." :
                     step == Step.Right ? "Roll RIGHT and hold the tilt to stay on the highlighted target." :
                     step == Step.Centre ? "Hold your neutral wrist pose to bring the ball back to CENTRE." :
@@ -231,9 +244,21 @@ namespace EndlessRollball.Tutorial
             acceptedJump = true;
             airborne = landed = false;
         }
-        private void OnAirborne() { if (practising && acceptedJump) airborne = true; }
+        private void OnAirborne()
+        {
+            if (practising && acceptedJump) airborne = true;
+            if (practising && !paused && touchedGround && airborneSince < 0f)
+                airborneSince = Time.time;
+        }
         private void OnGround(Collider support)
         {
+            if (practising && !paused && support != null && support != obstacle)
+            {
+                if (touchedGround && airborneSince >= 0f && Time.time - airborneSince >= .08f)
+                    PlayFeedback(landingClip, .4f);
+                touchedGround = true;
+                airborneSince = -1f;
+            }
             if (!practising || !acceptedJump || !airborne || support == obstacle) return;
             if (step == Step.Jump || body.position.z > obstacle.transform.position.z + 1f)
                 landed = true;
@@ -244,6 +269,8 @@ namespace EndlessRollball.Tutorial
         private void Succeed()
         {
             practising = false;
+            StopRollingAudio();
+            PlayFeedback(taskSuccessClip, .65f);
             input.SetAllowed(false, false);
             ball.StopMotionForCompletion();
             if (step == Step.Combined)
@@ -269,6 +296,8 @@ namespace EndlessRollball.Tutorial
         {
             if (busy || paused) return;
             paused = true;
+            StopRollingAudio();
+            if (feedbackAudio != null) feedbackAudio.Pause();
             Time.timeScale = 0;
             input.Clear();
             view.SetPaused(true);
@@ -279,6 +308,7 @@ namespace EndlessRollball.Tutorial
             if (!ball.IsSelectedInputReady) return;
             input.Clear();
             paused = false;
+            if (feedbackAudio != null) feedbackAudio.UnPause();
             Time.timeScale = 1;
             view.SetPaused(false);
         }
@@ -343,8 +373,71 @@ namespace EndlessRollball.Tutorial
             view.SetBusy(false);
             view.ShowError(message, retry);
         }
+        private void PrepareAudio()
+        {
+            audioGain = Mathf.Clamp01(PlayerPrefs.GetFloat("MenuAudio.Master", 1f)) *
+                Mathf.Clamp01(PlayerPrefs.GetFloat("MenuAudio.Effects", .45f));
+            ConfigureAudio(rollingAudio, true);
+            ConfigureAudio(feedbackAudio, false);
+            if (rollingAudio != null) rollingAudio.clip = rollingClip;
+            PreloadAudio(rollingClip); PreloadAudio(landingClip); PreloadAudio(taskSuccessClip);
+        }
+
+        private static void ConfigureAudio(AudioSource source, bool loop)
+        {
+            if (source == null) return;
+            source.playOnAwake = false;
+            source.loop = loop;
+            source.spatialBlend = 0f;
+            source.dopplerLevel = 0f;
+            source.Stop();
+        }
+
+        private static void PreloadAudio(AudioClip clip)
+        {
+            if (clip != null && clip.loadState == AudioDataLoadState.Unloaded) clip.LoadAudioData();
+        }
+
+        private void PlayFeedback(AudioClip clip, float volume)
+        {
+            if (feedbackAudio != null && clip != null && audioGain > 0f)
+                feedbackAudio.PlayOneShot(clip, volume * audioGain);
+        }
+
+        private void LateUpdate()
+        {
+            if (rollingAudio == null) return;
+            if (!practising || paused || busy || ball == null || body == null ||
+                !ball.IsGrounded || ball.GroundCollider == obstacle || Time.timeScale <= 0f ||
+                rollingClip == null || rollingClip.loadState != AudioDataLoadState.Loaded || audioGain <= 0f)
+            {
+                StopRollingAudio();
+                return;
+            }
+            Vector3 velocity = body.linearVelocity;
+            float speed = new Vector2(velocity.x, velocity.z).magnitude;
+            if (speed < .2f) { StopRollingAudio(); return; }
+            float speedRatio = Mathf.Clamp01(speed / 7f);
+            float targetPitch = Mathf.Lerp(.8f, 1.15f, speedRatio);
+            rollingAudio.pitch = rollingAudio.isPlaying
+                ? Mathf.Lerp(rollingAudio.pitch, targetPitch, 1f - Mathf.Exp(-Time.deltaTime / .25f))
+                : targetPitch;
+            rollingAudio.volume = Mathf.MoveTowards(rollingAudio.volume, .35f * audioGain * speedRatio,
+                .35f * audioGain * Time.deltaTime / .1f);
+            if (!rollingAudio.isPlaying) rollingAudio.Play();
+        }
+
+        private void StopRollingAudio()
+        {
+            if (rollingAudio == null) return;
+            rollingAudio.Stop();
+            rollingAudio.volume = 0f;
+        }
+
         private void OnDestroy()
         {
+            StopRollingAudio();
+            if (feedbackAudio != null) feedbackAudio.Stop();
             EndlessRollball.Infrastructure.GameplayAssetPreloader.TutorialDestroyed();
             Time.timeScale = 1;
             if (ball != null)

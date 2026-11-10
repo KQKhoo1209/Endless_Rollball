@@ -31,6 +31,7 @@ namespace EndlessRollball.Track
         {
             public GameObject Root;
             public Rigidbody Body;
+            public StreetCarHornAudio.Emitter Horn;
             public float LaneZ;
             public bool LeftToRight;
             public bool CrossEarly;
@@ -87,8 +88,11 @@ namespace EndlessRollball.Track
             player = null;
 
             foreach (LaneCar car in cars)
+            {
+                car.Horn?.Stop();
                 if (car.Root != null)
                     car.Root.SetActive(false);
+            }
 
             SetWarning(false);
         }
@@ -96,6 +100,7 @@ namespace EndlessRollball.Track
         public bool Prepare(Transform playerTransform, int seed, float maximumSpeed = 0f, float playerRadius = .5f)
         {
             ClearTraffic();
+            if (trafficRoot != null) trafficRoot.gameObject.SetActive(true);
             warningLights = GetComponentsInChildren<Light>(true);
             SetWarning(false);
 
@@ -176,6 +181,8 @@ namespace EndlessRollball.Track
         public void SetRunning(bool value)
         {
             running = prepared && value;
+            if (!running)
+                foreach (LaneCar car in cars) car.Horn?.Stop();
         }
 
         private LaneCar CreateCar(
@@ -217,6 +224,9 @@ namespace EndlessRollball.Track
             holder.transform.position = position;
             body.position = position;
 
+            car.Horn = StreetCarHornAudio.Instance?.CreateEmitter(vehicle.transform, player,
+                vehicle.GetComponentsInChildren<Collider>(true));
+
             return car;
         }
 
@@ -231,6 +241,27 @@ namespace EndlessRollball.Track
 
             float playerZ =
                 transform.InverseTransformPoint(player.position).z;
+
+            AdvanceTraffic(playerZ, false);
+        }
+
+        internal void SynchronizePlayerTeleport(float playerWorldZ)
+        {
+            if (!prepared || player == null) return;
+            Vector3 position = player.position;
+            position.z = playerWorldZ;
+            AdvanceTraffic(transform.InverseTransformPoint(position).z, true);
+        }
+
+        internal void SuppressForRecovery()
+        {
+            SetRunning(false);
+            trafficRoot.gameObject.SetActive(false);
+            SetWarning(false);
+        }
+
+        private void AdvanceTraffic(float playerZ, bool teleport)
+        {
 
             bool trafficRemaining = false;
 
@@ -255,8 +286,20 @@ namespace EndlessRollball.Track
                 float candidate = Mathf.InverseLerp(
                     startZ, finishZ, playerZ);
 
+                float previousProgress = car.Progress;
                 car.Progress = Mathf.Max(car.Progress, candidate);
-                car.Body.MovePosition(GetWorldPosition(car));
+                Vector3 position = GetWorldPosition(car);
+                if (teleport)
+                {
+                    car.Root.transform.position = position;
+                    car.Body.position = position;
+                    car.Horn?.Stop();
+                }
+                else
+                {
+                    car.Body.MovePosition(position);
+                    car.Horn?.Tick(car.Progress > previousProgress);
+                }
 
                 if (car.Progress < 1f)
                     trafficRemaining = true;
@@ -292,6 +335,7 @@ namespace EndlessRollball.Track
 
             foreach (LaneCar car in cars)
             {
+                car.Horn?.Stop();
                 if (car.Root == null)
                     continue;
 

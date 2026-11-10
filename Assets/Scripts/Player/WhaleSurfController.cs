@@ -13,6 +13,16 @@ namespace EndlessRollball
         [SerializeField] private GameObject visual;
         [SerializeField] private WaterSurfCourse course;
 
+        [Header("Breach entrance")]
+        [SerializeField, Min(.1f)] private float breachSeconds = 1.8f;
+        [SerializeField, Min(0f)] private float breachForwardDistance = 3f;
+        [SerializeField, Min(0f)] private float breachHeight = 2f;
+        [SerializeField, Range(0f, 60f)] private float breachPitch = 30f;
+        private Transform breachPivot;
+        private float breachTakeoffZ, breachStartZ, breachProgress, submergedDepth, emergenceHeight;
+        private bool breaching, emergencePlayed;
+        private CarrierEntranceSplash entranceSplash;
+
         [Header("Swimming animation")]
         [SerializeField, Min(0f)] private float waitingSwimSpeed = .5f;
         [SerializeField, Min(0f)] private float travellingSwimSpeed = 1f;
@@ -95,11 +105,23 @@ namespace EndlessRollball
         public int SurfHits => surfHits;
         public bool IsSurfing => surfing;
         public bool IsRecovering => surfing && phase == RoutePhase.Recovering;
+        public bool IsRidingWater => surfing && phase == RoutePhase.Surfing;
         public float BoardingTakeoffDistance => boardingTakeoffDistance;
         public float BoardingSeconds => handoffJumpSeconds;
+        public float EntranceLeadSeconds => breachSeconds + .25f;
+
+        private EventSpawnAudio spawnAudio;
 
         private void Awake()
         {
+            spawnAudio = GetComponent<EventSpawnAudio>();
+            // A separate pivot leaves the swim rig, hit feedback and ball anchor untouched.
+            if (visual != null)
+            {
+                breachPivot = new GameObject("Breach Entrance Pivot").transform;
+                breachPivot.SetParent(visual.transform.parent, false);
+                visual.transform.SetParent(breachPivot, false);
+            }
             if (visual != null) visualRestRotation = visual.transform.localRotation;
             if (visual != null)
                 swimAnimator = visual.GetComponentInChildren<Animator>(true);
@@ -116,6 +138,12 @@ namespace EndlessRollball
 
         private void Update()
         {
+            if (waitingAtEntry && runController != null &&
+                (runController.State == SessionFlowState.Ending ||
+                 runController.State == SessionFlowState.Results ||
+                 runController.State == SessionFlowState.SetupError))
+                HideWaitingWhale();
+            TickBreach();
             UpdateSwimmingAnimation();
             hitFeedback?.Tick(Time.timeScale <= 0f || (runController != null &&
                 runController.State == SessionFlowState.Paused));
@@ -165,20 +193,95 @@ namespace EndlessRollball
             // Keep the anchor and preview in sync before the next physics step.
             transform.position = position;
             hull.enabled = false;
+            ResetBreach();
+            hitFeedback?.Clear();
+            visual.transform.localRotation = visualRestRotation;
+            visualTurn = 0f;
             visual.SetActive(true);
             waitingAtEntry = true;
+            spawnAudio?.Play();
             retireWhaleAtZ = float.PositiveInfinity;
+            breachTakeoffZ = entryZ - boardingTakeoffDistance;
+            // Settle a little before takeoff, leaving time to read the boarding target.
+            breachTakeoffZ -= Mathf.Max(.1f, player.ForwardSpeed) * .25f;
+            breachStartZ = player.transform.position.z;
+            var renderers = visual.GetComponentsInChildren<Renderer>(true);
+            var bounds = new Bounds(visual.transform.position, Vector3.one);
+            foreach (var renderer in renderers) bounds.Encapsulate(renderer.bounds);
+            emergenceHeight = waterHeight + WaterSurfCourse.SeaSurfaceOffset - bounds.max.y;
+            submergedDepth = Mathf.Max(1f, bounds.max.y -
+                (waterHeight + WaterSurfCourse.SeaSurfaceOffset) + bounds.extents.magnitude + .3f);
+            entranceSplash ??= CarrierEntranceSplash.Create(transform);
+            breaching = true;
+            ApplyBreach(0f);
+        }
+
+        private void TickBreach()
+        {
+            if (!breaching || player == null || runController == null ||
+                runController.State != SessionFlowState.Running || Time.timeScale <= 0f) return;
+            float distance = breachTakeoffZ - breachStartZ;
+            breachProgress = Mathf.Max(breachProgress, distance <= .01f ? 1f :
+                Mathf.Clamp01((player.transform.position.z - breachStartZ) / distance));
+            ApplyBreach(breachProgress);
+        }
+
+        private void ApplyBreach(float t)
+        {
+            float rise = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / .45f));
+            float settle = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.45f, 1f, t));
+            float height = t < .45f ? Mathf.Lerp(-submergedDepth, breachHeight, rise) :
+                Mathf.Lerp(breachHeight, 0f, settle);
+            Vector3 offset = new Vector3(0f, height,
+                -breachForwardDistance * (1f - Mathf.SmoothStep(0f, 1f, t)));
+            breachPivot.localPosition = transform.InverseTransformVector(offset);
+            float pitch = t < .45f ? -breachPitch * Mathf.Sin(rise * Mathf.PI) :
+                breachPitch * .6f * Mathf.Sin(settle * Mathf.PI);
+            breachPivot.localRotation = Quaternion.Inverse(transform.rotation) *
+                Quaternion.AngleAxis(pitch, Vector3.right) * transform.rotation;
+            if (!emergencePlayed && height >= emergenceHeight)
+            {
+                emergencePlayed = true;
+                PlayEntranceSplash(1f);
+            }
+            if (t < 1f) return;
+            PlayEntranceSplash(.65f);
+            breaching = false;
+            breachPivot.localPosition = Vector3.zero;
+            breachPivot.localRotation = Quaternion.identity;
+        }
+
+        private void PlayEntranceSplash(float scale)
+        {
+            Vector3 position = visual.transform.position;
+            position.y = waterHeight + WaterSurfCourse.SeaSurfaceOffset + .1f;
+            entranceSplash?.Play(position, scale, course.SurfaceMaterial);
+        }
+
+        private void ResetBreach()
+        {
+            breaching = emergencePlayed = false;
+            breachProgress = 0f;
+            if (breachPivot != null)
+            {
+                breachPivot.localPosition = Vector3.zero;
+                breachPivot.localRotation = Quaternion.identity;
+            }
+            entranceSplash?.Clear();
         }
 
         public void HideWaitingWhale()
         {
             if (surfing) return;
+            ResetBreach();
             waitingAtEntry = false;
             if (visual != null) visual.SetActive(false);
         }
 
         private bool CapturePlayer(bool bridgeEntry)
         {
+            if (!GameSequenceCoordinator.IsEventUnlocked(EndlessRollball.Scenery.EnvironmentTheme.Water))
+                return false;
             if (surfing || player == null || runController == null || ballAnchor == null ||
                 visual == null || course == null || !course.Prepare()) return false;
             sphereBody = player.GetComponent<Rigidbody>();
@@ -213,6 +316,7 @@ namespace EndlessRollball
             startedAt = Time.time;
             surfing = true;
             runController.SetWhaleCameraFraming(true, cameraExtraOffset, cameraLookAhead);
+            if (!waitingAtEntry) spawnAudio?.Play();
             waitingAtEntry = false;
             visual.SetActive(true);
             return true;
@@ -236,6 +340,7 @@ namespace EndlessRollball
         public bool BeginBeachRoute(float exitZ, float duration)
         {
             if (!waitingAtEntry || duration <= 0f) return false;
+            if (breaching) ApplyBreach(1f);
             Vector3 offset = whaleBody.rotation * anchorOffset;
             float stopZ = exitZ - exitStopDistance;
             float distance = stopZ - (whaleBody.position.z + offset.z);
@@ -272,9 +377,11 @@ namespace EndlessRollball
                 wake = WaterMovementWake.Create(transform, visual.transform);
             hull.enabled = true;
             course.Show(whaleBody.position, channelCentreX, forwardSpeed,
-                channelWidth, waterHeight, transform);
+                channelWidth, waterHeight, transform,runController.Generator.CurrentSeed,runController.TrackDifficulty,
+                runController.Generator.EncounterProgress01,steeringSpeed,steeringAcceleration,hull.bounds.extents);
             wake?.ResetAt(whaleBody.position, course.SurfaceHeight, course.SurfaceMaterial);
             course.SetWaterSurfaceVisible(showWater);
+            BeachGameplayAudio.Instance?.StartSurfingAudio();
         }
 
         private void FixedUpdate()
@@ -516,7 +623,9 @@ namespace EndlessRollball
             Vector3 probe = hull.bounds.center + direction.normalized * (hull.bounds.size.magnitude + 1f);
             Vector3 contact = hull.ClosestPoint(probe);
             contact.y = course.SurfaceHeight + .12f;
-            hitFeedback?.React(contact, course.SurfaceMaterial, hitSoundVolume, hitFlinchDuration, hitFlinchDepth);
+            var beachAudio = BeachGameplayAudio.Instance;
+            beachAudio?.PlayBoatCrash();
+            hitFeedback?.React(contact, course.SurfaceMaterial, beachAudio != null ? 0f : hitSoundVolume, hitFlinchDuration, hitFlinchDepth);
             runController.Tasks.RecordEventNavigation(obstacle.GetInstanceID(),false);
             BeginRecovery(obstacle);
             EndlessRollball.Infrastructure.RuntimeLog.Info($"[WhaleHit] {obstacle.name}; total hits: {surfHits}", this);
@@ -524,6 +633,7 @@ namespace EndlessRollball
 
         private void OnDisable()
         {
+            ResetBreach();
             hitFeedback?.Clear();
             wake?.Clear();
             waitingAtEntry = false;

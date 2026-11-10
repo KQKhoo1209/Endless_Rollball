@@ -24,6 +24,7 @@ namespace EndlessRollball
         private float animationTime;
         private float targetSteering, visualSteering;
         private float leftSide, rightSide;
+        private float entrancePitch;
 
         public void PrepareModel()
         {
@@ -60,6 +61,8 @@ namespace EndlessRollball
 
         public void SetSteering(float steering) => targetSteering = Mathf.Clamp(steering, -1f, 1f);
 
+        public void SetEntrancePitch(float pitch) => entrancePitch = pitch;
+
         public void React() => reactionUntil = Time.time + .6f;
 
         private void LateUpdate()
@@ -78,13 +81,14 @@ namespace EndlessRollball
             // leg anchor afterward; the phoenix collision body stays level.
             transform.localPosition = restPosition + Vector3.up * (Mathf.Sin(phase - .5f) * bodyBob);
             float reactionRoll = hit ? Mathf.Sin(Time.time * 28f) * 9f : 0f;
-            transform.localRotation = restRotation * Quaternion.Euler(0f,
+            transform.localRotation = restRotation * Quaternion.Euler(entrancePitch,
                 visualSteering * maximumYaw, -visualSteering * maximumBank + reactionRoll);
         }
 
         private void OnDisable()
         {
             reactionUntil = 0f;
+            entrancePitch = 0f;
             animationTime = 0f;
             targetSteering = visualSteering = 0f;
             if (!prepared) return;

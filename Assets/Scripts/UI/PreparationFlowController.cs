@@ -12,6 +12,9 @@ public sealed class PreparationFlowController : MonoBehaviour
     [SerializeField] private PaintingSessionUI painting;
     [SerializeField] private GameObject guidePage;
     [SerializeField] private GameObject mainMenuPage;
+    [SerializeField] private GameObject gameModePage;
+    [SerializeField] private GameObject difficultyPage;
+    [SerializeField] private GameObject mainMenuTitle;
     private bool finalCalibration;
     public bool IsFinalCalibration => finalCalibration;
     public bool IsConnectionView(SensorCalibrationUI view) => view == connection;
@@ -27,6 +30,8 @@ public sealed class PreparationFlowController : MonoBehaviour
 
     private void Show(GameObject page)
     {
+        if (gameModePage != null && gameModePage != page) gameModePage.SetActive(false);
+        if (difficultyPage != null && difficultyPage != page) difficultyPage.SetActive(false);
         if (connection.gameObject != page) connection.gameObject.SetActive(false);
         if (calibration.gameObject != page) calibration.gameObject.SetActive(false);
         if (ratings.gameObject != page) ratings.gameObject.SetActive(false);
@@ -36,7 +41,23 @@ public sealed class PreparationFlowController : MonoBehaviour
         page.SetActive(true);
     }
 
-    public void Begin() { ResetAttempt(); ShowConnection(); }
+    public void Begin()
+    {
+        ResetAttempt();
+        if (GameSessionSettings.SelectedInputMode == GameInputMode.Keyboard) ShowKeyboardGuide();
+        else ShowConnection();
+    }
+
+    public void ShowKeyboardGuide()
+    {
+        if (GameSessionSettings.SelectedInputMode != GameInputMode.Keyboard) return;
+        painting.ResetAttempt();
+        ratings.ResetRatings();
+        GameSessionSettings.ResetWellbeing();
+        ImuRuntimeSession.Instance?.Disconnect();
+        finalCalibration = false;
+        Show(guidePage);
+    }
     public void PreviewRatings() { ResetAttempt(); ShowRatings(); }
     public void PreviewPainting()
     {
@@ -63,6 +84,7 @@ public sealed class PreparationFlowController : MonoBehaviour
 
     public void ShowNeutralCalibration()
     {
+        if (GameSessionSettings.SelectedInputMode == GameInputMode.Keyboard) { ShowKeyboardGuide(); return; }
         ImuRuntimeSession.Ensure().InvalidateCalibration();
         finalCalibration = true;
         calibration.SetPreparationMode(false);
@@ -79,7 +101,24 @@ public sealed class PreparationFlowController : MonoBehaviour
     public void BackFromSensor(SensorCalibrationUI source)
     {
         if (source == calibration) ShowPainting();
-        else RestAndReturn();
+        else ReturnToSetup();
+    }
+
+    public void ReturnToSetup()
+    {
+        // Back preserves selections and the connection; only Rest and Return ends preparation.
+        finalCalibration = false;
+        bool showMode = !GameSessionSettings.SelectedMode.HasValue || GameSessionSettings.SelectedMode == GameMode.Endless;
+        var previousPage = showMode ? gameModePage : difficultyPage;
+        Show(previousPage != null ? previousPage : mainMenuPage);
+    }
+
+    private void LateUpdate()
+    {
+        // Settings and avatar menus also control MainMenuPage through their own existing routes.
+        if (mainMenuTitle != null && mainMenuPage != null &&
+            mainMenuTitle.activeSelf != mainMenuPage.activeInHierarchy)
+            mainMenuTitle.SetActive(mainMenuPage.activeInHierarchy);
     }
 
     public void RestAndReturn()

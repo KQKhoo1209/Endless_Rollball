@@ -140,6 +140,7 @@ public sealed class PainStressCheckUI : MonoBehaviour
 
     private void ApplyButtonStyle(UnityEngine.UI.Button button)
     {
+        if (EndlessRollball.UI.UIButtonStyle.ApplyShared(button)) return;
         if (buttonStyleReference == null) return;
         button.GetComponent<UnityEngine.UI.Image>().color = buttonStyleReference.GetComponent<UnityEngine.UI.Image>().color;
         button.GetComponentInChildren<TMP_Text>().color = buttonStyleReference.GetComponentInChildren<TMP_Text>().color;

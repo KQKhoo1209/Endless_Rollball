@@ -33,6 +33,11 @@ namespace EndlessRollball.Track
         {
             entryZ = 0f;
             exitZ = 0f;
+            if (!GameSequenceCoordinator.IsEventUnlocked(EndlessRollball.Scenery.EnvironmentTheme.Water))
+            {
+                SurfReservationIssue = "Unlock Tidal Whale to enable water surfing.";
+                return false;
+            }
             SurfReservationIssue = "Check sea prefab/anchors, player, and prepared track references.";
 
             if (beachSurfReserved ||

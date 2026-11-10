@@ -52,6 +52,7 @@ namespace EndlessRollball.Track
         {
             public GameObject Prefab;
             public GameObject Instance;
+            public string Family;
             public Renderer[] Renderers;
             public bool[] RendererDefaults;
             public SideToSideObstacleMotion Motion;
@@ -286,6 +287,8 @@ namespace EndlessRollball.Track
                     cachedInstances.Add(instance, pair);
                 }
 
+                // Refresh metadata on every attachment, including pooled instances.
+                pair.Family = plan.Family;
                 instance.transform.SetParent(activeRoot, false);
                 instance.transform.SetPositionAndRotation(segment.transform.TransformPoint(placement.Position), segment.transform.rotation * Quaternion.Euler(0f, placement.YawDegrees, 0f));
                 instance.transform.localScale = Vector3.one;
@@ -365,6 +368,7 @@ namespace EndlessRollball.Track
             {
                 activeBeachBarriers.Remove(segment);
                 attachedEncounters.Remove(segment);
+                RestoreRoadworksSolidContacts(segment);
                 activeRoadworks.Remove(segment);
                 ReleaseJunction(segment);
                 ReleaseCityVehicle(segment);
@@ -426,6 +430,7 @@ namespace EndlessRollball.Track
             fixedLibraryCache.Clear();
             fixedFamilyCache.Clear();
             runFixedFamilies = null;
+            RestoreRoadworksSolidContacts();
             activeRoadworks.Clear();
         }
 

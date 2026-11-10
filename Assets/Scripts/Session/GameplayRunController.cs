@@ -35,8 +35,11 @@ namespace EndlessRollball.Track
         public string TrackIdentifier { get; }
         public SessionScore Score { get; }
         public double? PlannedRouteDurationSeconds { get; }
+        public EndlessRollball.Avatars.AvatarRunSnapshot Avatar { get; }
+        public bool AvatarProgressSaved { get; private set; }
+        public int AvatarCoinsCredited { get; private set; }
 
-        public SessionEndInfo(string id, SessionOutcome outcome, double seconds, int seed, string trackIdentifier, SessionScore score, double? plannedDuration)
+        public SessionEndInfo(string id, SessionOutcome outcome, double seconds, int seed, string trackIdentifier, SessionScore score, double? plannedDuration, EndlessRollball.Avatars.AvatarRunSnapshot avatar = null)
         {
             SessionId = id;
             Outcome = outcome;
@@ -45,6 +48,12 @@ namespace EndlessRollball.Track
             TrackIdentifier = trackIdentifier;
             Score = score;
             PlannedRouteDurationSeconds = plannedDuration;
+            Avatar = avatar;
+        }
+        public void TrySaveAvatarProgress()
+        {
+            AvatarProgressSaved = EndlessRollball.Avatars.AvatarProgressRepository.Instance.CommitSession(this, out int coins);
+            if (AvatarProgressSaved) AvatarCoinsCredited = coins;
         }
     }
 
@@ -79,6 +88,8 @@ namespace EndlessRollball.Track
         [SerializeField, Min(.1f)]
         private float respawnBlinkInterval = .25f;
         [Header("Finite finish presentation")]
+        [SerializeField]
+        private FinishCelebrationAudio finishAudio;
         [SerializeField, Min(.1f)]
         private float finishFireworksSeconds = 5f;
         [SerializeField, Min(.05f)]
@@ -110,6 +121,7 @@ namespace EndlessRollball.Track
         private double activeSeconds;
         private double activeIntervalStart;
         private string sessionId;
+        private EndlessRollball.Avatars.AvatarRunSnapshot avatarSnapshot;
         private int discardInputThroughFrame = -1;
         private float recoveryMinimumZ;
         private double recoveryReadyAt;
@@ -368,7 +380,8 @@ namespace EndlessRollball.Track
         {
             if (State != SessionFlowState.SpecialEvent) return;
 
-            float clearThroughZ = landingZ + Mathf.Max(0f, postCloudRestDistance);
+            float clearThroughZ = landingZ + Mathf.Max(postCloudRestDistance,
+                ballMovement.ForwardSpeed*1.25f+ballMovement.SphereRadius*2f);
             // Exclude skipped road tasks and remove nearby payloads before normal
             // collision handling resumes. Keep the supporting road intact.
             taskTracker.PrepareRecoveryArrival(landingZ, clearThroughZ);
@@ -463,6 +476,16 @@ namespace EndlessRollball.Track
         {
             if (State != SessionFlowState.Running)
                 return;
+
+            string contact="none";
+            if(relatedHazard!=null)
+            {
+                contact=relatedHazard.name;
+                for(Transform parent=relatedHazard.transform.parent;parent!=null;parent=parent.parent)
+                    contact=parent.name+"/"+contact;
+            }
+            EndlessRollball.Infrastructure.RuntimeLog.Info(
+                $"[RoadFailure] outcome={outcome}, player={ballMovement.transform.position}, collider={contact}, hazardBounds={(relatedHazard!=null?relatedHazard.bounds.ToString():"none")}",this);
 
             if (!trackGenerator.HasFiniteRoute)
             {
@@ -601,6 +624,7 @@ namespace EndlessRollball.Track
             trackGenerator.SetGenerationPaused(true);
             if (outcome == SessionOutcome.Completed)
             {
+                finishAudio?.Play();
                 HoldCamera(); // Retain the finish composition while the ball rolls through it.
                 ballMovement.BeginFinishRoll(trackGenerator.FinishLineZ, finishSlowdownSeconds);
             }
@@ -619,7 +643,8 @@ namespace EndlessRollball.Track
             else
                 HideFinishGate();
             SessionScore score = taskTracker.FinalizeSession(outcome, relatedHazard);
-            EndInfo = new SessionEndInfo(sessionId, outcome, activeSeconds, trackGenerator.CurrentSeed, trackGenerator.TrackIdentifier, score, trackGenerator.HasFiniteRoute ? (double? )trackGenerator.PlannedRouteDurationSeconds : null);
+            EndInfo = new SessionEndInfo(sessionId, outcome, activeSeconds, trackGenerator.CurrentSeed, trackGenerator.TrackIdentifier, score, trackGenerator.HasFiniteRoute ? (double? )trackGenerator.PlannedRouteDurationSeconds : null, avatarSnapshot);
+            EndInfo.TrySaveAvatarProgress();
             // 7C-1B will insert short, unscaled failure feedback HERE.
             // The immutable ending/duration already exist; do not reset the route.
             EndlessRollball.Infrastructure.RuntimeLog.Info($"Session ended: {EndInfo.SessionId} | {outcome} | active={activeSeconds:F2}s", this);
@@ -672,6 +697,7 @@ namespace EndlessRollball.Track
                     if (Time.frameCount <= finishCoveredFrame)
                         return;
                     finishCelebration.ClearFireworks();
+                    finishAudio?.StopFireworks();
                     sessionUI.ShowResult(EndInfo);
                     finishPhase = FinishPhase.FadeIn;
                     finishPhaseStartedAt = Time.unscaledTimeAsDouble;
@@ -692,6 +718,7 @@ namespace EndlessRollball.Track
         {
             finishPhase = FinishPhase.None;
             finishCelebration?.Stop();
+            finishAudio?.Stop();
         }
 
         private void CaptureActiveInterval()
@@ -773,6 +800,9 @@ namespace EndlessRollball.Track
             }
 
             sessionId = Guid.NewGuid().ToString("N");
+            var avatarStore = EndlessRollball.Avatars.AvatarProgressRepository.Instance;
+            avatarSnapshot = new EndlessRollball.Avatars.AvatarRunSnapshot(avatarStore.Appearance(avatarStore.Selected),
+                GameSessionSettings.SelectedMode ?? GameMode.Standard, TrackDifficulty);
             activeSeconds = 0d;
             EndInfo = null;
             taskTracker.BeginSession(sessionId);

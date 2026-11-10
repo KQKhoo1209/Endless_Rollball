@@ -17,6 +17,7 @@ namespace EndlessRollball.Track
         [SerializeField, Min(1f)] private float approachTravel = 36f;
 
         private Rigidbody body;
+        private DungeonObstacleAudio obstacleAudio;
         private Transform player;
         private TrackGenerator generator;
         private Renderer[] renderers;
@@ -49,6 +50,7 @@ namespace EndlessRollball.Track
         {
             if(cached) return;
             body=GetComponent<Rigidbody>();
+            obstacleAudio=GetComponent<DungeonObstacleAudio>();
             if(body==null || stoneVisual==null || stoneCollider==null) return;
             visualRestRotation=stoneVisual.localRotation;
             renderers=GetComponentsInChildren<Renderer>(true);
@@ -104,13 +106,19 @@ namespace EndlessRollball.Track
             // Teleport once at pooled preparation, before simulation/rendering.
             body.position=previousPosition;
             transform.position=previousPosition;
+            obstacleAudio?.ResetAudio();
+            obstacleAudio?.SetRunning(running);
             UpdateVisibility();
         }
 
         // A shared encounter reserves a specific opposite-side passage. Keep weaving at
         // distance, then settle onto the planned side through the collision window.
         public void SetPlannedPassage(float playerX) => plannedPassSide=-Mathf.Sign(playerX);
-        public void SetRunning(bool value) => running=prepared && !finished && value;
+        public void SetRunning(bool value)
+        {
+            running=prepared && !finished && value;
+            obstacleAudio?.SetRunning(running);
+        }
         public void SetPresentationVisible(bool value)
         {
             if(presentationVisible==value) return;
@@ -148,12 +156,14 @@ namespace EndlessRollball.Track
             if(player!=null && greatestProgress>=clearProgress)
             {
                 finished=true;running=false;
+                obstacleAudio?.StopAudio();
                 stoneCollider.enabled=false;
             }
         }
         private void UpdateVisibility()
         {
             bool visible=prepared && presentationVisible && (generator==null || generator.HasVisibleDungeonRoad(previousPosition.z-radius,previousPosition.z+radius));
+            obstacleAudio?.SetLoopAudible(visible);
             for(int i=0;i<renderers.Length;i++)
                 if(renderers[i]!=null) renderers[i].enabled=visible && rendererDefaults[i];
         }
@@ -162,6 +172,7 @@ namespace EndlessRollball.Track
         private void OnDisable()
         {
             running=false;prepared=false;finished=false;elapsed=0f;
+            obstacleAudio?.StopAudio();
             player=null;generator=null;greatestProgress=0f;plannedPassSide=0;
             if(!cached) return;
             stoneVisual.localRotation=visualRestRotation;

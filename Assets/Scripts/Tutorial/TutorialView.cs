@@ -185,10 +185,12 @@ namespace EndlessRollball.Tutorial
         {
             var rect = Panel(parent, text, min, max, new Color(.08f, .38f, .52f));
             var button = rect.gameObject.AddComponent<Button>();
+            button.onClick.AddListener(EndlessRollball.UI.UIButtonClickAudio.PlayDefault);
             button.targetGraphic = rect.GetComponent<Image>();
             button.onClick.AddListener(() => clicked());
             var label = Label(rect, "Label", text, 25, new Vector2(.04f, .04f), new Vector2(.96f, .96f));
             label.alignment = TextAlignmentOptions.Center;
+            EndlessRollball.UI.UIButtonStyle.ApplyShared(button);
             return button;
         }
     }

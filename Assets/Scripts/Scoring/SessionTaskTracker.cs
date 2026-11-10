@@ -255,13 +255,13 @@ namespace EndlessRollball.Track
                 return;
             }
 
-            if (existing != null || task.Index < highestRegisteredIndex || task.LandingStartZ >= task.DeadlineZ)
+            if (existing != null || (!registeringGeneratedRoad && task.Index < highestRegisteredIndex) || task.LandingStartZ >= task.DeadlineZ)
             {
                 RegistrationError(task.Track, "Duplicate task or no safe completion/landing space.");
                 return;
             }
 
-            highestRegisteredIndex = task.Index;
+            highestRegisteredIndex = Mathf.Max(highestRegisteredIndex,task.Index);
             task.Identity = $"{sessionId}:{task.EncounterId}:{task.LocalIndex}:{task.Kind}";
             opportunities.Add(task);
         }
@@ -554,17 +554,26 @@ namespace EndlessRollball.Track
             return !float.IsPositiveInfinity(bestZ);
         }
 
-        internal void PrepareRecoveryArrival(float destinationZ, float clearThroughZ = float.NegativeInfinity)
+        internal void PrepareRecoveryArrival(float destinationZ, float clearThroughZ = float.NegativeInfinity, bool resetJumpEvidence = true)
         {
             foreach (Opportunity task in opportunities)
             {
                 // Teleporting past a different task is an exclusion, never free success/failure evidence.
                 if (task.HazardStartZ <= Mathf.Max(destinationZ, clearThroughZ))
                     Cancel(task);
-                task.AcceptedJump = task.ObservedAirborne = false;
+                if(resetJumpEvidence) task.AcceptedJump = task.ObservedAirborne = false;
             }
 
             Publish();
+        }
+
+        private bool registeringGeneratedRoad;
+        internal void RegisterGeneratedRoadPayloads(System.Action register)
+        {
+            bool previous=registeringGeneratedRoad;
+            registeringGeneratedRoad=true;
+            try { register(); }
+            finally { registeringGeneratedRoad=previous; }
         }
 
         internal void ReleaseTrack(TrackSegment track)

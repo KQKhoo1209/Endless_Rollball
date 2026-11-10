@@ -19,6 +19,7 @@ namespace EndlessRollball.Track
         private Renderer[] visuals = Array.Empty<Renderer>();
         private bool[] visualDefaults = Array.Empty<bool>();
         private float halfLength;
+        private StreetCarHornAudio.Emitter horn;
         private sealed class FadeVisual
         {
             public Renderer Renderer;
@@ -83,6 +84,7 @@ namespace EndlessRollball.Track
                 body.useGravity = false;
                 body.interpolation = RigidbodyInterpolation.Interpolate;
                 body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+                horn = StreetCarHornAudio.Instance?.CreateEmitter(vehicle.transform, player, Hazards);
                 BeginFade();
                 UpdateVisibility();
             }
@@ -90,7 +92,29 @@ namespace EndlessRollball.Track
             return true;
         }
 
-        public void SetRunning(bool value) => running = prepared && value;
+        public void SetRunning(bool value)
+        {
+            running = prepared && value;
+            if (!running) horn?.Stop();
+        }
+
+        internal void SynchronizePlayerTeleport(float playerWorldZ)
+        {
+            if (!prepared || !IsMoving || body == null || player == null) return;
+            Vector3 playerPosition = player.position;
+            playerPosition.z = playerWorldZ;
+            greatestProgress = Mathf.Max(greatestProgress,
+                transform.InverseTransformPoint(playerPosition).z + 24f);
+            Vector3 position = initialPosition;
+            position.z = VehicleZ(greatestProgress);
+            Vector3 worldPosition = transform.TransformPoint(position);
+            // A player teleport is not a physics traversal. MovePosition here
+            // would sweep the car through the skipped stretch on the next step.
+            vehicle.transform.position = worldPosition;
+            body.position = worldPosition;
+            horn?.Stop();
+            UpdateVisibility();
+        }
 
         private void FixedUpdate()
         {
@@ -104,6 +128,7 @@ namespace EndlessRollball.Track
             Vector3 position = initialPosition;
             position.z = VehicleZ(greatestProgress);
             Vector3 worldPosition = transform.TransformPoint(position);
+            bool moving = (worldPosition - body.position).sqrMagnitude > .000001f;
             if (!vehicleRoot.gameObject.activeInHierarchy)
             {
                 vehicle.transform.position = worldPosition;
@@ -111,6 +136,7 @@ namespace EndlessRollball.Track
             }
             else body.MovePosition(worldPosition);
             bool visible = UpdateVisibility();
+            horn?.Tick(moving && visible && vehicleRoot.gameObject.activeInHierarchy);
             if (visible && vehicleRoot.gameObject.activeInHierarchy && fades.Count > 0)
             {
                 fadeElapsed += Time.fixedDeltaTime;
@@ -190,6 +216,7 @@ namespace EndlessRollball.Track
 
         private void OnDisable()
         {
+            horn?.Stop();
             ReleaseFade();
             prepared = running = false;
             player = null;
@@ -200,6 +227,8 @@ namespace EndlessRollball.Track
 
         private void ClearVehicle()
         {
+            horn?.Stop();
+            horn = null;
             ReleaseFade();
             prepared = running = false;
             greatestProgress = 0f;

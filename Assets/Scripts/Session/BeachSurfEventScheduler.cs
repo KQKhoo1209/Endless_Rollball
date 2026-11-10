@@ -112,8 +112,9 @@ namespace EndlessRollball
             {
                 float playerZ = run.PlayerBall.transform.position.z;
 
-                // The whale is already stationary in the water when it comes into view.
-                if (playerZ >= reservedEntryZ - 45f)
+                float entranceDistance = whale.BoardingTakeoffDistance +
+                    Mathf.Max(.1f, run.PlayerBall.ForwardSpeed) * whale.EntranceLeadSeconds;
+                if (playerZ >= reservedEntryZ - entranceDistance)
                     whale.ShowWaitingWhale(reservedEntryZ);
 
                 if (playerZ >= reservedEntryZ - whale.BoardingTakeoffDistance)
@@ -192,8 +193,8 @@ namespace EndlessRollball
             DifficultyMode difficulty = run.TrackDifficulty;
 
             return
-                mode == GameMode.FastPaced ||
-                mode == GameMode.Standard;
+                (mode == GameMode.FastPaced || mode == GameMode.Standard) &&
+                GameSequenceCoordinator.IsEventUnlocked(EnvironmentTheme.Water);
         }
 
         private void OnValidate()

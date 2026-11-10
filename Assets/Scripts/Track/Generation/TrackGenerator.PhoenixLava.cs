@@ -33,6 +33,8 @@ namespace EndlessRollball.Track
             out float entryZ, out float exitZ)
         {
             entryZ = exitZ = 0f;
+            if (!GameSequenceCoordinator.IsEventUnlocked(EndlessRollball.Scenery.EnvironmentTheme.Dungeon))
+                return false;
             if (phoenixReserved || !IsRunPrepared || environmentManager == null ||
                 phoenixLavaPrefab == null || !phoenixLavaPrefab.IsContractValid(out _) ||
                 player == null || duration <= 0f) return false;

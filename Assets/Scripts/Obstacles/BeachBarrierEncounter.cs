@@ -77,6 +77,7 @@ namespace EndlessRollball.Track
                 transform.InverseTransformPoint(ball.transform.position).z>=detonationLocalZ)
             {
                 exploded=true; rollerCollider.enabled=false;
+                BeachGameplayAudio.Instance?.PlayExplosion();
                 rollerVisual.gameObject.SetActive(false);
                 foreach(var p in warning) p.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
                 // Visual patch and its supporting collider change in the same fixed step.

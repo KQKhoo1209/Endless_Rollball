@@ -8,8 +8,22 @@ namespace EndlessRollball
         [SerializeField] private Animator padAnimator;
         [SerializeField, Min(1f)] private float launchHeight = 16f;
         [SerializeField] private CloudPlatformEvent cloudEvent;
+        [Header("Launch sound")]
+        [SerializeField] private AudioSource bounceSource;
+        [SerializeField, Range(0f, 1f)] private float bounceVolume = .65f;
 
         private bool launched;
+
+        private void Awake()
+        {
+            if (bounceSource == null) return;
+            bounceSource.playOnAwake = false;
+            bounceSource.loop = false;
+            bounceSource.spatialBlend = 0f;
+            bounceSource.dopplerLevel = 0f;
+            if (bounceSource.clip != null && bounceSource.clip.loadState == AudioDataLoadState.Unloaded)
+                bounceSource.clip.LoadAudioData();
+        }
 
         private void Reset()
         {
@@ -19,6 +33,7 @@ namespace EndlessRollball
         private void OnEnable()
         {
             launched = false;
+            if (bounceSource != null) bounceSource.Stop();
         }
 
         private void OnTriggerEnter(Collider other)
@@ -52,6 +67,20 @@ namespace EndlessRollball
             body.AddForce(
                 Vector3.up * launchSpeed,
                 ForceMode.VelocityChange);
+
+            // This path runs once, only after the cloud event accepted the launch.
+            if (bounceSource != null && bounceSource.clip != null)
+            {
+                float gain = Mathf.Clamp01(PlayerPrefs.GetFloat("MenuAudio.Master", 1f)) *
+                    Mathf.Clamp01(PlayerPrefs.GetFloat("MenuAudio.Effects", .45f));
+                bounceSource.volume = bounceVolume * gain;
+                if (gain > 0f) bounceSource.Play();
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (bounceSource != null) bounceSource.Stop();
         }
 
         private void OnTriggerStay(Collider other)

@@ -4,6 +4,47 @@ namespace EndlessRollball.Track
 {
     public sealed partial class TrackGenerator
     {
+        private readonly System.Collections.Generic.HashSet<TrackSegment> cloudContinuationRoads =
+            new System.Collections.Generic.HashSet<TrackSegment>();
+
+        private void PopulateRoadAfterCloud()
+        {
+            if(obstacleManager==null || environmentManager==null || taskTracker==null || player==null)
+            { cloudContinuationRoads.Clear(); return; }
+            float clearThrough=Mathf.Max(player.position.z,protectedArrivalEnd);
+            obstacleManager.ResumeSharedRoadAfterCloud(clearThrough);
+            int populated=0;
+            foreach(var entry in activeSegments)
+            {
+                TrackSegment road=entry.Instance;
+                if(!cloudContinuationRoads.Contains(road) || !road.IsPresentationVisible ||
+                    road.RequiredJump || road.Kind!=TrackSegmentKind.Empty ||
+                    road.ExitAnchor.position.z<=clearThrough ||
+                    !environmentManager.IsStreetRoadSegment(entry.Index) ||
+                    environmentManager.RequiresClearTrack(entry.Index) ||
+                    environmentManager.IsTransitionSegment(entry.Index+1) || IsFinishCorridor(entry.Index) ||
+                    (hasFiniteRoute && entry.Index>=finishSegmentIndex-1)) continue;
+                ThemeObstacleLibrary library=environmentManager.GetObstacleLibraryForRoad(entry.Prefab);
+                if(library==null || library.SharedPacing==null) continue;
+                float origin=road.EntryAnchor.position.z;
+                var request=new ObstacleManager.CityPlanningRequest {
+                    Road=entry.Prefab, Index=entry.Index, Zone=environmentManager.EncounterZoneAt(entry.Index),
+                    Origin=origin, Limit=Mathf.Min(road.ExitAnchor.position.z,
+                        hasFiniteRoute?finishLineZ-finishClearance:float.PositiveInfinity),
+                    Difficulty=difficultyManager.EvaluateForDistance(Mathf.Max(0,origin+12)),
+                    Library=library, PayloadsOnly=true,
+                    SpawnAhead=Mathf.Max(0,origin-player.position.z), RecycleBehind=recycleBehindDistance
+                };
+                var plan=obstacleManager.PlanCloudReturnPayloads(request);
+                taskTracker.RegisterGeneratedRoadPayloads(
+                    ()=>obstacleManager.AttachSegment(road,plan,environmentManager,this));
+                if(plan.Encounters!=null) populated+=plan.Encounters.Count;
+            }
+            cloudContinuationRoads.Clear();
+            EndlessRollball.Infrastructure.RuntimeLog.Info(
+                $"[CloudRoad] Resumed road payloads={populated}, landing buffer ends at Z={clearThrough:F2}.",this);
+        }
+
         internal bool TryFindCloudGateway(
             float playerZ, SessionTaskTracker tasks,
             out Vector3 position, out int zone)

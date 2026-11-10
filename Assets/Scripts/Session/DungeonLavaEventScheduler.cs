@@ -40,12 +40,19 @@ namespace EndlessRollball
             }
             if (run.State != SessionFlowState.Running || eventStarted || skipped) return;
             if (sequence==null || !sequence.Eligible) return;
+            // A locked phoenix leaves the whole Dungeon visit as ordinary road.
+            // Check before preparing or reserving lava so no road is replaced.
+            if (!GameSequenceCoordinator.IsEventUnlocked(EnvironmentTheme.Dungeon)) return;
             if (environmentManager == null || phoenix == null)
             {
                 Skip("Assign Environment Manager and Phoenix on the Dungeon Lava Event Scheduler.");
                 return;
             }
-            if (environmentManager.CurrentTheme != EnvironmentTheme.Dungeon) return;
+            if (environmentManager.CurrentTheme != EnvironmentTheme.Dungeon)
+            {
+                if (routeReserved) Skip("Dungeon ended before the phoenix pickup.");
+                return;
+            }
             if (!enteredDungeon) { dungeonElapsedSeconds = 0f; enteredDungeon = true; }
             dungeonElapsedSeconds = sequence!=null ? sequence.Elapsed : dungeonElapsedSeconds + Time.deltaTime;
             if (dungeonElapsedSeconds > latestEntrySeconds)
@@ -68,7 +75,9 @@ namespace EndlessRollball
             }
             if (!routeReserved) return;
             float z = run.PlayerBall.transform.position.z;
-            if (z >= entryZ - 45f) phoenix.ShowWaitingPhoenix(entryZ);
+            float entranceDistance = phoenix.BoardingTakeoffDistance +
+                Mathf.Max(.1f, run.PlayerBall.ForwardSpeed) * phoenix.EntranceLeadSeconds;
+            if (z >= entryZ - entranceDistance) phoenix.ShowWaitingPhoenix(entryZ);
             if (z < entryZ - phoenix.BoardingTakeoffDistance) return;
             // An early arrival boards safely, then waits at the carry anchor.
             // Waiting and boarding use scaled time; neither consumes the 45 s course.

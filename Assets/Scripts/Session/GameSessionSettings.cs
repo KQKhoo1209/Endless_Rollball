@@ -8,8 +8,18 @@ public enum GameMode
     Endless
 }
 
+public enum GameInputMode { Imu, Keyboard }
+
 public static class GameSessionSettings
 {
+    public static GameInputMode SelectedInputMode { get; private set; } = GameInputMode.Imu;
+    public static event System.Action InputModeChanged;
+    public static void SelectInputMode(GameInputMode mode)
+    {
+        if (SelectedInputMode == mode) return;
+        SelectedInputMode = mode;
+        InputModeChanged?.Invoke();
+    }
     public static double? GameplayLoadRequestedAt { get; private set; }
     public static string GameplayEntryRoute { get; private set; } = "direct";
     public static void MarkGameplayLoadRequested(string route = "menu")
@@ -33,6 +43,8 @@ public static class GameSessionSettings
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetDefaults()
     {
+        SelectedInputMode = GameInputMode.Imu;
+        InputModeChanged = null;
         ResetSelection();
     }
 

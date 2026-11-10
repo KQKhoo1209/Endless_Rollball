@@ -8,6 +8,34 @@ namespace EndlessRollball.Track
     {
         private readonly Dictionary<TrackSegment, Collider[]> activeRoadworks =
             new Dictionary<TrackSegment, Collider[]>();
+        private readonly HashSet<Collider> recoveryRoadworksSolids = new HashSet<Collider>();
+
+        private void SuppressRoadworksSolidContacts(float fromZ,float throughZ)
+        {
+            // Keep hole sensors and supporting floor unchanged. Only solid props
+            // (notably the police vehicle) are removed from a protected arrival.
+            foreach(var hazards in activeRoadworks.Values)
+                foreach(var shape in hazards)
+                    if(shape!=null && shape.enabled && !shape.isTrigger &&
+                        shape.bounds.max.z>=fromZ && shape.bounds.min.z<=throughZ)
+                    {
+                        recoveryRoadworksSolids.Add(shape);
+                        shape.enabled=false;
+                    }
+        }
+
+        private void RestoreRoadworksSolidContacts(TrackSegment track=null)
+        {
+            if(track==null)
+            {
+                foreach(var shape in recoveryRoadworksSolids)
+                    if(shape!=null) shape.enabled=true;
+                recoveryRoadworksSolids.Clear();
+            }
+            else if(activeRoadworks.TryGetValue(track,out var hazards))
+                foreach(var shape in hazards)
+                    if(shape!=null && recoveryRoadworksSolids.Remove(shape)) shape.enabled=true;
+        }
 
         private bool TryPlanRoadworks(
             ThemeObstacleLibrary library,
